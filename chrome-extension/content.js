@@ -70,6 +70,7 @@
     let scrollIntervalId = null;
     let scrollTimeoutId = null;
     let stopTimer = null;
+    let _modeRetryTimers = [];
 
     // ======================== 模式检测 ========================
     function isScrollMode() {
@@ -83,13 +84,9 @@
     }
 
     function isSystemDarkMode() {
-        // 检测微信读书系统深色模式
-        // 微信读书通常通过 body 或 html 的 class 来标识深色模式
-        return document.body.classList.contains('dark') ||
-               document.body.classList.contains('theme-dark') ||
-               document.documentElement.classList.contains('dark') ||
-               document.documentElement.classList.contains('theme-dark') ||
-               window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // 微信读书通过 body 的 wr_whiteTheme class 标识浅色模式
+        // 没有 wr_whiteTheme 时为深色模式
+        return !document.body.classList.contains('wr_whiteTheme');
     }
 
     // 获取当前系统模式下可用的主题色
@@ -169,21 +166,133 @@
         let isDark = theme.type === 'dark';
         let textColor = isDark ? '#d4d4d4' : '#333333';
         let subTextColor = isDark ? '#a0a0a0' : '#555555';
+        let isDualColumn = isDoubleColumnMode();
+
+        if (isDualColumn) {
+            // 双栏模式文字由 Canvas 渲染，CSS color 无法影响，只设背景色和 UI 元素颜色
+            stopColorObserver();
+            addStyle('bgColor', `
+                html, body, #app, .app, #routerView, .routerView { background-color: ${color} !important; }
+                .wr_horizontalReader, .wr_horizontalReader_app_content { background-color: ${color} !important; }
+                .readerContent, .app_content, .wr_various_font_provider_wrapper,
+                .readerChapterContent, .readerChapterContent_container, .renderTargetContainer, .renderTargetContent { background-color: ${color} !important; }
+                .page, .page_left, .page_right, .page_show, .page_space_top, .page_space_bottom { background-color: ${color} !important; }
+                .readerTopBar, .readerTopBar_inner, .readerTopBar_left, .readerTopBar_right,
+                .readerBottomBar, .readerBottomBar_content, .readerFooter, .readerFooter_button,
+                .readerControls, .readerControls_item { background-color: ${color} !important; }
+                .readerChapterContent, .wr_page_reader, .readerContent, .app_content,
+                .wr_various_font_provider_wrapper { background-image: none !important; }
+                .readerTopBar_title_chapter, .readerTopBar_title_link, .readerTopBar_link, .readerTopBar a { color: ${textColor} !important; }
+                .readerTopBar_title, .readerBottomBar span, .readerFooter_button span { color: ${subTextColor} !important; }
+                .renderTargetPageInfo_header, .renderTarget_pager, .renderTargetPageInfo_header * { color: ${textColor} !important; }
+            `);
+
+            // 清除插件旧内联文字颜色（不设新的）
+            document.querySelectorAll('[style*="color"]').forEach(function(el) {
+                el.style.removeProperty('color');
+            });
+
+            // 强制 Canvas 重渲染
+            requestAnimationFrame(function() {
+                var cc = document.querySelector('.wr_canvasContainer');
+                if (cc) {
+                    cc.style.display = 'none';
+                    cc.offsetHeight;
+                    cc.style.display = '';
+                }
+            });
+            return;
+        }
+
+        // === 滚动模式 ===
         addStyle('bgColor', `
             html, body, #app, .app, #routerView, .routerView { background-color: ${color} !important; color: ${textColor} !important; }
             .wr_horizontalReader, .wr_horizontalReader_app_content { background-color: ${color} !important; color: ${textColor} !important; }
             .readerContent, .app_content, .wr_various_font_provider_wrapper,
             .readerChapterContent, .readerChapterContent_container, .renderTargetContainer, .renderTargetContent { background-color: ${color} !important; }
+            .page, .page_left, .page_right, .page_show, .page_space_top, .page_space_bottom { background-color: ${color} !important; }
             .readerTopBar, .readerTopBar_inner, .readerTopBar_left, .readerTopBar_right,
             .readerBottomBar, .readerBottomBar_content, .readerFooter, .readerFooter_button,
             .readerControls, .readerControls_item { background-color: ${color} !important; }
             .readerChapterContent, .wr_page_reader, .readerContent, .app_content,
             .wr_various_font_provider_wrapper { background-image: none !important; }
-            .readerChapterContent, .readerChapterContent .renderTargetContent, .readerChapterContent p, .readerChapterContent span { color: ${textColor} !important; }
+            .wr_horizontalReader, .wr_horizontalReader * { color: ${textColor} !important; }
+            .readerChapterContent, .readerChapterContent .renderTargetContent, .readerChapterContent p, .readerChapterContent span, .readerChapterContent div { color: ${textColor} !important; }
+            .readerChapterContent, .readerChapterContent_container, .renderTargetContainer, .renderTargetContent { color: ${textColor} !important; }
             .readerTopBar_title_chapter, .readerTopBar_title_link, .readerTopBar_link, .readerTopBar a { color: ${textColor} !important; }
             .readerTopBar_title, .readerBottomBar span, .readerFooter_button span { color: ${subTextColor} !important; }
             .readerCatalog, .readerCatalog *, .readerNotePanel, .readerNotePanel * { background-color: ${color} !important; color: ${textColor} !important; }
+            .renderTargetPageInfo_header, .renderTarget_pager, .renderTargetPageInfo_header * { color: ${textColor} !important; }
+            .preRenderContainer, .preRenderContainer * { color: ${textColor} !important; }
+            .renderTargetContainer, .renderTargetContainer * { color: ${textColor} !important; }
+            .readerChapterContent_container, .readerChapterContent_container * { color: ${textColor} !important; }
         `);
+        // 用内联样式强制覆盖文字颜色，先清除旧的内联颜色再设置新的
+        let textSels = [
+            '.readerChapterContent', '.readerChapterContent *',
+            '.renderTargetContent', '.renderTargetContent *',
+            '.renderTargetContainer', '.renderTargetContainer *',
+            '.preRenderContainer', '.preRenderContainer *',
+            '.readerChapterContent_container', '.readerChapterContent_container *',
+            '.page', '.page *',
+            '.wr_flyleaf_page', '.wr_flyleaf_page *',
+            '.reader_flyleaf_container', '.reader_flyleaf_container *',
+            '.wr_horizontalReader', '.wr_horizontalReader *'
+        ];
+        textSels.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                // 先清除内联样式中的 color
+                el.style.removeProperty('color');
+                // 再设置新的颜色
+                el.style.setProperty('color', textColor, 'important');
+            });
+        });
+
+        // 额外处理：清除所有带有旧颜色的内联样式
+        document.querySelectorAll('[style*="color"]').forEach(function(el) {
+            let style = el.getAttribute('style') || '';
+            // 检查是否包含深色模式颜色
+            if (style.indexOf('212, 212, 212') !== -1 || style.indexOf('212,212,212') !== -1) {
+                el.style.removeProperty('color');
+                el.style.setProperty('color', textColor, 'important');
+            }
+            // 检查是否包含浅色模式颜色但当前是深色模式
+            if (isDark && (style.indexOf('51, 51, 51') !== -1 || style.indexOf('51,51,51') !== -1)) {
+                el.style.removeProperty('color');
+                el.style.setProperty('color', textColor, 'important');
+            }
+        });
+
+        startColorObserver();
+    }
+
+    // 持续监听内联样式变化，强制覆盖微信读书设置的文字颜色
+    let _colorObserver = null;
+    let _lastTextColor = null;
+    function startColorObserver() {
+        if (_colorObserver) return;
+        let target = document.querySelector('.wr_horizontalReader') || document.querySelector('.readerContent');
+        if (!target) return;
+        _colorObserver = new MutationObserver(function() {
+            let theme = bgColors[bgIdx];
+            let isDark = theme.type === 'dark';
+            let textColor = isDark ? '#d4d4d4' : '#333333';
+            if (_lastTextColor !== textColor) {
+                _lastTextColor = textColor;
+            }
+            // 检查并覆盖所有带有错误颜色的内联样式
+            document.querySelectorAll('[style*="color"]').forEach(function(el) {
+                let computed = getComputedStyle(el).color;
+                let expected = isDark ? 'rgb(212, 212, 212)' : 'rgb(51, 51, 51)';
+                if (computed !== expected) {
+                    el.style.setProperty('color', textColor, 'important');
+                }
+            });
+        });
+        _colorObserver.observe(target, { attributes: true, subtree: true, attributeFilter: ['style'] });
+    }
+    function stopColorObserver() {
+        if (_colorObserver) { _colorObserver.disconnect(); _colorObserver = null; }
     }
 
     function applyImmersive() {
@@ -500,9 +609,11 @@
         // 监听模式切换按钮点击，动态重建面板
         // 模式切换按钮：isNormalReader（滚动） ↔ isHorizontalReader（双栏）
         var modeBtn = document.querySelector('[class*="isNormalReader"], [class*="isHorizontalReader"]');
-        if (modeBtn) {
+        if (modeBtn && !modeBtn.dataset.wrModeListenerAttached) {
+            modeBtn.dataset.wrModeListenerAttached = '1';
             modeBtn.addEventListener('click', function() {
                 setTimeout(function() {
+                    applyBgColor();
                     buildControlPanel();
                 }, 300);
             });
@@ -710,15 +821,45 @@
         reapplyAllStyles();
         buildControlPanel();
         initSpaceKeyHandler();
+        if (!isDoubleColumnMode()) startColorObserver();
 
-        // 监听系统深色/浅色模式变化
+        // 记录当前系统模式，用于检测变化
+        let lastDarkMode = isSystemDarkMode();
+
+        // 监听系统深色/浅色模式变化（prefers-color-scheme）
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
-            console.log('[悦读助手] 系统深色模式切换');
-            // 重新应用背景色，会自动调整到当前模式下的主题色
-            applyBgColor();
-            // 重建控制面板以更新显示
-            buildControlPanel();
+            console.log('[悦读助手] prefers-color-scheme 切换');
+            handleSystemModeChange();
         });
+
+        // 监听 body/html class 变化（微信读书自己的深色模式切换）
+        let modeObserver = new MutationObserver(function() {
+            let currentDark = isSystemDarkMode();
+            if (currentDark !== lastDarkMode) {
+                console.log('[悦读助手] 系统深色模式切换:', currentDark ? '深色' : '浅色');
+                lastDarkMode = currentDark;
+                handleSystemModeChange();
+            }
+        });
+        modeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        modeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+        function handleSystemModeChange() {
+            // 清除上一轮的延时重试，防止快速切换时堆积
+            _modeRetryTimers.forEach(clearTimeout);
+            _modeRetryTimers = [];
+
+            let available = getAvailableColors();
+            // 切换到当前模式的第一个主题色
+            bgIdx = bgColors.findIndex(c => c.name === available[0].name);
+            storageSet("bgIdx", bgIdx);
+            applyBgColor();
+            buildControlPanel();
+            // 延迟多次重试，确保覆盖微信读书自身样式更新
+            _modeRetryTimers.push(setTimeout(applyBgColor, 300));
+            _modeRetryTimers.push(setTimeout(applyBgColor, 800));
+            _modeRetryTimers.push(setTimeout(applyBgColor, 1500));
+        }
 
         // 微信读书自身 JS 会在加载后重新计算布局，覆盖内联样式
         // 延迟再跑一次 applyWidth 确保宽屏生效
