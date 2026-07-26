@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="bgB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8f4ef"/>
+      <stop offset="100%" stop-color="#f0ebe3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" rx="48" fill="url(#bgB)"/>
+
+  <!-- Book (rounded, friendly style) -->
+  <g transform="translate(200,210)">
+    <!-- Left page - rounded rect -->
+    <rect x="-85" y="-55" width="82" height="100" rx="6" fill="#ffffff" stroke="#2d2d2d" stroke-width="3.5"/>
+    <!-- Right page - rounded rect -->
+    <rect x="3" y="-55" width="82" height="100" rx="6" fill="#ffffff" stroke="#2d2d2d" stroke-width="3.5"/>
+    <!-- Spine -->
+    <line x1="0" y1="-58" x2="0" y2="48" stroke="#2d2d2d" stroke-width="4"/>
+    <!-- Text lines -->
+    <line x1="-72" y1="-25" x2="-20" y2="-25" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <line x1="-70" y1="-5" x2="-22" y2="-5" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+    <line x1="-68" y1="15" x2="-24" y2="15" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <line x1="16" y1="-25" x2="72" y2="-25" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <line x1="18" y1="-5" x2="70" y2="-5" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+    <line x1="20" y1="15" x2="68" y2="15" stroke="#d97757" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  </g>
+
+  <!-- Magnifying glass -->
+  <g transform="translate(230,130)">
+    <!-- Lens -->
+    <circle cx="0" cy="0" r="42" fill="none" stroke="#2d2d2d" stroke-width="4.5"/>
+    <!-- Lens inner glow -->
+    <circle cx="0" cy="0" r="38" fill="#4a9eff" opacity="0.08"/>
+    <!-- Handle -->
+    <line x1="30" y1="30" x2="55" y2="55" stroke="#2d2d2d" stroke-width="7" stroke-linecap="round"/>
+    <!-- Shine on lens -->
+    <path d="M-20,-25 Q-10,-35 5,-28" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <!-- Sparkle dots inside lens -->
+    <circle cx="-8" cy="5" r="3" fill="#d97757" opacity="0.8"/>
+    <circle cx="12" cy="-8" r="2" fill="#d97757" opacity="0.6"/>
+    <circle cx="-5" cy="-15" r="2.5" fill="#d97757" opacity="0.5"/>
+  </g>
+
+  <!-- Small decorative dots -->
+  <circle cx="105" cy="100" r="4" fill="#d97757" opacity="0.4"/>
+  <circle cx="310" cy="170" r="3" fill="#d97757" opacity="0.3"/>
+  <circle cx="90" cy="270" r="3.5" fill="#d97757" opacity="0.35"/>
+
+  <!-- Brand name -->
+  <text x="200" y="340" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" fill="#2d2d2d" letter-spacing="2">WEREAD PLUS</text>
+</svg>
