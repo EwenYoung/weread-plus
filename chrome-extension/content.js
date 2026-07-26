@@ -71,8 +71,22 @@
     let scrollTimeoutId = null;
     let stopTimer = null;
 
+    // ======================== 模式检测 ========================
+    function isScrollMode() {
+        // 滚动模式：按钮 class 为 isNormalReader
+        return !!document.querySelector('.readerControls_item.isNormalReader');
+    }
+
+    function isDoubleColumnMode() {
+        // 双栏模式：按钮 class 为 isHorizontalReader
+        return !!document.querySelector('.readerControls_item.isHorizontalReader');
+    }
+
     // ======================== 样式应用 ========================
     function applyWidth() {
+        // 双栏模式下不应用宽屏
+        if (isDoubleColumnMode()) return;
+
         let cfg = widths[widthIdx];
         let w = cfg.width || '';
         let reader = document.querySelector('.readerContent');
@@ -219,6 +233,8 @@
 
     function startAutoScroll() {
         if (autoScrollFlag) return;
+        // 双栏模式下禁用自动阅读
+        if (isDoubleColumnMode()) return;
         autoScrollFlag = true;
         if (autoMode === 1) {
             if (scrollIntervalId) clearInterval(scrollIntervalId);
@@ -364,14 +380,18 @@
         let panel = document.createElement('div');
         panel.id = 'wr-control-panel';
 
-        let rows = [
-            { label: '屏幕宽度',  key: 'width',      val: widths[widthIdx].title },
-            { label: '背景颜色',  key: 'bg',         val: bgColors[bgIdx].name, isBg: true },
-            { label: '自动模式',  key: 'autoMode',   val: autoModes[autoMode] },
-            { label: '滚动步长',  key: 'scrollStep', val: scrollStep + 'px', isSub: true },
-            { label: '滚动间隔',  key: 'scrollInt',  val: scrollInterval + 'ms', isSub: true },
-            { label: '自动停止',  key: 'autoStop',   val: autoStopMinutes === 0 ? '不停止' : autoStopMinutes + '分钟', isSub: true },
-        ];
+        // 双栏模式下只显示背景颜色，隐藏宽屏和自动阅读相关控件
+        var rows = [];
+        if (!isDoubleColumnMode()) {
+            rows.push({ label: '屏幕宽度',  key: 'width',      val: widths[widthIdx].title });
+        }
+        rows.push({ label: '背景颜色',  key: 'bg',         val: bgColors[bgIdx].name, isBg: true });
+        if (!isDoubleColumnMode()) {
+            rows.push({ label: '自动模式',  key: 'autoMode',   val: autoModes[autoMode] });
+            rows.push({ label: '滚动步长',  key: 'scrollStep', val: scrollStep + 'px', isSub: true });
+            rows.push({ label: '滚动间隔',  key: 'scrollInt',  val: scrollInterval + 'ms', isSub: true });
+            rows.push({ label: '自动停止',  key: 'autoStop',   val: autoStopMinutes === 0 ? '不停止' : autoStopMinutes + '分钟', isSub: true });
+        }
 
         let rowsHTML = rows.map(r => {
             if (r.isBg) {
@@ -450,6 +470,17 @@
         }
 
         console.log('[悦读助手] 控制面板已创建');
+
+        // 监听模式切换按钮点击，动态重建面板
+        // 模式切换按钮：isNormalReader（滚动） ↔ isHorizontalReader（双栏）
+        var modeBtn = document.querySelector('[class*="isNormalReader"], [class*="isHorizontalReader"]');
+        if (modeBtn) {
+            modeBtn.addEventListener('click', function() {
+                setTimeout(function() {
+                    buildControlPanel();
+                }, 300);
+            });
+        }
     }
 
     // 在预设数组中循环切换值
