@@ -82,6 +82,30 @@
         return !!document.querySelector('.readerControls_item.isHorizontalReader');
     }
 
+    function isSystemDarkMode() {
+        // 检测微信读书系统深色模式
+        // 微信读书通常通过 body 或 html 的 class 来标识深色模式
+        return document.body.classList.contains('dark') ||
+               document.body.classList.contains('theme-dark') ||
+               document.documentElement.classList.contains('dark') ||
+               document.documentElement.classList.contains('theme-dark') ||
+               window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    // 获取当前系统模式下可用的主题色
+    function getAvailableColors() {
+        let isDark = isSystemDarkMode();
+        return bgColors.filter(c => (isDark && c.type === 'dark') || (!isDark && c.type === 'light'));
+    }
+
+    // 获取当前主题色在可用列表中的索引
+    function getCurrentColorIndex() {
+        let available = getAvailableColors();
+        let current = bgColors[bgIdx];
+        let idx = available.findIndex(c => c.name === current.name);
+        return idx >= 0 ? idx : 0;
+    }
+
     // ======================== 样式应用 ========================
     function applyWidth() {
         // 双栏模式下不应用宽屏
@@ -502,14 +526,26 @@
                 needReload = true;
                 break;
             case 'bg_next':
-                bgIdx = (bgIdx + 1) % bgColors.length;
-                storageSet("bgIdx", bgIdx);
-                applyBgColor();
+                {
+                    let available = getAvailableColors();
+                    let currentIdx = getCurrentColorIndex();
+                    let nextIdx = (currentIdx + 1) % available.length;
+                    let nextColor = available[nextIdx];
+                    bgIdx = bgColors.findIndex(c => c.name === nextColor.name);
+                    storageSet("bgIdx", bgIdx);
+                    applyBgColor();
+                }
                 break;
             case 'bg_prev':
-                bgIdx = (bgIdx - 1 + bgColors.length) % bgColors.length;
-                storageSet("bgIdx", bgIdx);
-                applyBgColor();
+                {
+                    let available = getAvailableColors();
+                    let currentIdx = getCurrentColorIndex();
+                    let prevIdx = (currentIdx - 1 + available.length) % available.length;
+                    let prevColor = available[prevIdx];
+                    bgIdx = bgColors.findIndex(c => c.name === prevColor.name);
+                    storageSet("bgIdx", bgIdx);
+                    applyBgColor();
+                }
                 break;
             case 'autoMode':
                 autoMode = autoMode === 0 ? 1 : 0;
@@ -567,7 +603,19 @@
         });
 
         let bgName = panel.querySelector('.wr-bg-name');
-        if (bgName) bgName.textContent = bgColors[bgIdx].name;
+        if (bgName) {
+            let available = getAvailableColors();
+            let current = bgColors[bgIdx];
+            // 检查当前主题色是否在当前系统模式下可用
+            let isAvailable = available.some(c => c.name === current.name);
+            if (!isAvailable) {
+                // 如果不可用，切换到第一个可用的主题色
+                bgIdx = bgColors.findIndex(c => c.name === available[0].name);
+                storageSet("bgIdx", bgIdx);
+                applyBgColor();
+            }
+            bgName.textContent = bgColors[bgIdx].name;
+        }
 
         let toggleBtn = panel.querySelector('#wr-btn-toggle');
         if (toggleBtn) {
@@ -662,6 +710,15 @@
         reapplyAllStyles();
         buildControlPanel();
         initSpaceKeyHandler();
+
+        // 监听系统深色/浅色模式变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+            console.log('[悦读助手] 系统深色模式切换');
+            // 重新应用背景色，会自动调整到当前模式下的主题色
+            applyBgColor();
+            // 重建控制面板以更新显示
+            buildControlPanel();
+        });
 
         // 微信读书自身 JS 会在加载后重新计算布局，覆盖内联样式
         // 延迟再跑一次 applyWidth 确保宽屏生效
