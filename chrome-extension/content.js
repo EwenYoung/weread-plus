@@ -146,8 +146,10 @@
         let textColor = isDark ? '#d4d4d4' : '#333333';
         let subTextColor = isDark ? '#a0a0a0' : '#555555';
         addStyle('bgColor', `
+            html, body, #app, .app, #routerView, .routerView { background-color: ${color} !important; color: ${textColor} !important; }
+            .wr_horizontalReader, .wr_horizontalReader_app_content { background-color: ${color} !important; color: ${textColor} !important; }
             .readerContent, .app_content, .wr_various_font_provider_wrapper,
-            .readerChapterContent, .renderTargetContainer, .renderTargetContent { background-color: ${color} !important; }
+            .readerChapterContent, .readerChapterContent_container, .renderTargetContainer, .renderTargetContent { background-color: ${color} !important; }
             .readerTopBar, .readerTopBar_inner, .readerTopBar_left, .readerTopBar_right,
             .readerBottomBar, .readerBottomBar_content, .readerFooter, .readerFooter_button,
             .readerControls, .readerControls_item { background-color: ${color} !important; }
