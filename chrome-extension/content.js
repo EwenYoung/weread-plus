@@ -127,6 +127,7 @@
             '.readerContent .app_content',
             '.readerContent .wr_various_font_provider_wrapper',
             '.readerContent .readerChapterContent',
+            '.readerContent .readerChapterContent_container',
             '.readerContent .renderTargetContainer',
             '.readerContent .renderTargetContent'
         ];
@@ -508,6 +509,81 @@
                 .wr-btn-stop:hover { background: rgba(120,90,50,0.35); }
                 .wr-btn-mode { background: rgba(160,128,80,0.2); color: #5a4530; }
                 .wr-btn-mode:hover { background: rgba(160,128,80,0.35); }
+
+                /* === 深色面板 === */
+                body:not(.wr_whiteTheme) .wr-panel-body {
+                    background: #1c1c22;
+                    background-image:
+                        radial-gradient(ellipse at 20% 50%, rgba(140,120,90,0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, rgba(140,120,90,0.04) 0%, transparent 50%);
+                    color: #c8c0b4;
+                    box-shadow: -4px 4px 20px rgba(0,0,0,0.35), inset 0 0 30px rgba(140,120,90,0.03);
+                    border-color: #2e2e38;
+                }
+                body:not(.wr_whiteTheme) .wr-panel-body h3 {
+                    color: #a89880;
+                    border-bottom-color: #2e2e38;
+                }
+                body:not(.wr_whiteTheme) .wr-panel-row {
+                    border-bottom-color: rgba(140,120,90,0.12);
+                }
+                body:not(.wr_whiteTheme) .wr-panel-row span.wr-label {
+                    color: #8a8070;
+                }
+                body:not(.wr_whiteTheme) .wr-panel-row button {
+                    background: rgba(140,120,90,0.12);
+                    border-color: rgba(140,120,90,0.2);
+                    color: #b0a490;
+                }
+                body:not(.wr_whiteTheme) .wr-panel-row button:hover {
+                    background: rgba(140,120,90,0.25);
+                    border-color: rgba(140,120,90,0.4);
+                }
+                body:not(.wr_whiteTheme) .wr-panel-row button.wr-active {
+                    background: rgba(140,120,90,0.25);
+                    border-color: rgba(140,120,90,0.4);
+                }
+                body:not(.wr_whiteTheme) .wr-btn-arrow {
+                    background: rgba(140,120,90,0.12);
+                    border-color: rgba(140,120,90,0.2);
+                    color: #b0a490;
+                }
+                body:not(.wr_whiteTheme) .wr-btn-arrow:hover {
+                    background: rgba(140,120,90,0.3);
+                    border-color: rgba(140,120,90,0.5);
+                }
+                body:not(.wr_whiteTheme) .wr-bg-name {
+                    color: #8a8070;
+                }
+                body:not(.wr_whiteTheme) .wr-sub-val {
+                    color: #b0a490;
+                }
+                body:not(.wr_whiteTheme) .wr-panel-body.wr-auto-on .wr-sub-row {
+                    border-bottom-color: rgba(140,120,90,0.12);
+                }
+                body:not(.wr_whiteTheme) .wr-btn-play {
+                    background: rgba(140,120,90,0.18);
+                    color: #b0a490;
+                    border-color: rgba(140,120,90,0.25);
+                }
+                body:not(.wr_whiteTheme) .wr-btn-play:hover {
+                    background: rgba(140,120,90,0.32);
+                }
+                body:not(.wr_whiteTheme) .wr-btn-stop {
+                    background: rgba(110,90,60,0.2);
+                    color: #a89880;
+                    border-color: rgba(110,90,60,0.3);
+                }
+                body:not(.wr_whiteTheme) .wr-btn-stop:hover {
+                    background: rgba(110,90,60,0.35);
+                }
+                body:not(.wr_whiteTheme) .wr-btn-mode {
+                    background: rgba(140,120,90,0.18);
+                    color: #b0a490;
+                }
+                body:not(.wr_whiteTheme) .wr-btn-mode:hover {
+                    background: rgba(140,120,90,0.32);
+                }
             `;
             document.head.appendChild(s);
         }
@@ -866,6 +942,7 @@
         if (widthIdx === 1) {
             setTimeout(applyWidth, 1000);
             setTimeout(applyWidth, 2500);
+            setTimeout(applyWidth, 5000);
         }
 
         // SPA 导航监听
