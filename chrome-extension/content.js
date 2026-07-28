@@ -222,7 +222,7 @@
             .readerChapterContent, .readerChapterContent_container, .renderTargetContainer, .renderTargetContent { color: ${textColor} !important; }
             .readerTopBar_title_chapter, .readerTopBar_title_link, .readerTopBar_link, .readerTopBar a { color: ${textColor} !important; }
             .readerTopBar_title, .readerBottomBar span, .readerFooter_button span { color: ${subTextColor} !important; }
-            .readerCatalog, .readerCatalog *, .readerNotePanel, .readerNotePanel * { background-color: ${color} !important; color: ${textColor} !important; }
+            .readerCatalog, .readerCatalog *, .readerNotePanel { background-color: ${color} !important; color: ${textColor} !important; }
             .renderTargetPageInfo_header, .renderTarget_pager, .renderTargetPageInfo_header * { color: ${textColor} !important; }
             .preRenderContainer, .preRenderContainer * { color: ${textColor} !important; }
             .renderTargetContainer, .renderTargetContainer * { color: ${textColor} !important; }
