@@ -158,6 +158,37 @@
                 controls.style.removeProperty('margin-left');
             }
         }
+
+        // 修正目录/笔记在宽屏下的定位（它们用 position:fixed;left:50%，需要跟随按钮右移）
+        var sidePanels = ['.readerCatalog', '.readerNotePanel'];
+        sidePanels.forEach(function(sel) {
+            var el = document.querySelector(sel);
+            if (!el) return;
+            if (w) {
+                el.style.setProperty('left', 'auto', 'important');
+                el.style.setProperty('right', '0', 'important');
+            } else {
+                el.style.removeProperty('left');
+                el.style.removeProperty('right');
+            }
+        });
+
+        // AI问书面板：宽屏下也右移，限制宽度避免右侧空白
+        var aiPanels = document.querySelectorAll('.readerAIChatPanel');
+        aiPanels.forEach(function(el) {
+            if (w) {
+                el.style.setProperty('left', 'auto', 'important');
+                el.style.setProperty('right', '0', 'important');
+                el.style.setProperty('width', '400px', 'important');
+                el.style.setProperty('max-width', '400px', 'important');
+            } else {
+                el.style.removeProperty('left');
+                el.style.removeProperty('right');
+                el.style.removeProperty('width');
+                el.style.removeProperty('max-width');
+            }
+        });
+
         console.log('[悦读助手] applyWidth:', cfg.title);
     }
 
