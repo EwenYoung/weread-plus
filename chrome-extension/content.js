@@ -664,14 +664,13 @@
         let bodyClass = autoMode === 0 ? 'wr-auto-on' : '';
         let btnLabel = autoScrollFlag ? '暂停' : '开始阅读';
         let btnClass = autoScrollFlag ? 'wr-btn-stop' : 'wr-btn-play';
+        let isDual = isDoubleColumnMode();
 
         panel.innerHTML = `
             <div class="wr-panel-body ${bodyClass}">
                 <h3>悦读助手</h3>
                 ${rowsHTML}
-                <div class="wr-panel-actions">
-                    <button class="${btnClass}" id="wr-btn-toggle">${btnLabel}</button>
-                </div>
+                ${isDual ? '' : '<div class="wr-panel-actions"><button class="' + btnClass + '" id="wr-btn-toggle">' + btnLabel + '</button></div>'}
             </div>
         `;
 
