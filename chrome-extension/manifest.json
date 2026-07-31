@@ -24,5 +24,11 @@
     }
   ],
   "permissions": ["storage"],
-  "host_permissions": ["https://www.douban.com/*"]
+  "host_permissions": ["https://www.douban.com/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/*.js"],
+      "matches": ["https://weread.qq.com/*"]
+    }
+  ]
 }

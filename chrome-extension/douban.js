@@ -6,13 +6,13 @@
 
     console.log('[豆瓣联动] content script 已加载');
 
-    var lastQuery = '';
-    var doubanPanel = null;
+    let lastQuery = '';
+    let doubanPanel = null;
 
     // 样式
     function injectStyle() {
         if (document.getElementById('wr-douban-style')) return;
-        var s = document.createElement('style');
+        let s = document.createElement('style');
         s.id = 'wr-douban-style';
         s.textContent = `
             #wr-douban-panel {
@@ -76,13 +76,13 @@
         doubanPanel = document.createElement('div');
         doubanPanel.id = 'wr-douban-panel';
 
-        var header = document.createElement('div');
+        let header = document.createElement('div');
         header.className = 'wr-douban-header';
 
-        var titleSpan = document.createElement('span');
+        let titleSpan = document.createElement('span');
         titleSpan.textContent = '豆瓣: ' + query;
 
-        var closeBtn = document.createElement('button');
+        let closeBtn = document.createElement('button');
         closeBtn.id = 'wr-douban-close';
         closeBtn.textContent = '✕';
         closeBtn.addEventListener('click', function() {
@@ -93,9 +93,9 @@
         header.appendChild(titleSpan);
         header.appendChild(closeBtn);
 
-        var listEl = document.createElement('div');
+        let listEl = document.createElement('div');
         listEl.className = 'wr-douban-list';
-        var loading = document.createElement('div');
+        let loading = document.createElement('div');
         loading.className = 'wr-douban-loading';
         loading.textContent = '搜索中...';
         listEl.appendChild(loading);
@@ -107,18 +107,18 @@
         return doubanPanel;
     }
 
-    function searchDouban(query, panel) {
-        var listEl = panel.querySelector('.wr-douban-list');
+    async function searchDouban(query, panel) {
+        let listEl = panel.querySelector('.wr-douban-list');
 
         // 通过 background service worker 代理请求
-        chrome.runtime.sendMessage({ type: 'DOUBAN_SEARCH', query: query }, function(resp) {
+        chrome.runtime.sendMessage({ type: 'DOUBAN_SEARCH', query: query }, async function(resp) {
             if (chrome.runtime.lastError || !resp) {
                 listEl.innerHTML = '<div class="wr-douban-error">网络请求失败</div>';
                 console.log('[豆瓣联动] 请求错误:', chrome.runtime.lastError ? chrome.runtime.lastError.message : 'no response');
                 return;
             }
             if (!resp.ok) {
-                var errMsg = '网络请求失败';
+                let errMsg = '网络请求失败';
                 if (resp.error === 'DOUBAN_BLOCKED') errMsg = '豆瓣反爬拦截，请稍后再试';
                 else if (resp.error === 'TIMEOUT') errMsg = '请求豆瓣超时';
                 else if (resp.error) errMsg = resp.error;
@@ -127,7 +127,9 @@
                 return;
             }
 
-            var results = parseResults(resp.data);
+            // 解析器按需加载（内容脚本 import() 必须用扩展绝对路径，chrome 会缓存）
+            const { parseResults } = await import(chrome.runtime.getURL('lib/douban-parser.js'));
+            let results = parseResults(resp.data);
             console.log('[豆瓣联动] 响应长度:', resp.data.length, '解析结果:', results.length);
 
             if (results.length === 0) {
@@ -139,76 +141,7 @@
         });
     }
 
-    function parseResults(html) {
-        var results = [];
-        // 用 DOMParser 避免将第三方 DOM 注入 document
-        var parser = new DOMParser();
-        var doc = parser.parseFromString(html, 'text/html');
-        var items = doc.querySelectorAll('.result');
-
-        items.forEach(function(item) {
-            if (item.querySelector('.result-ad')) return;
-
-            var nbg = item.querySelector('a.nbg');
-            if (!nbg) return;
-
-            var ratingEl = item.querySelector('.rating_nums, [class*="rating"]');
-            var castEl = item.querySelector('.subject-cast');
-            var metaEl = item.querySelector('.rating-info .pl, .pl');
-
-            var coverImg = item.querySelector('.pic img') || item.querySelector('a.nbg img') || item.querySelector('img');
-            var coverUrl = '';
-            if (coverImg) {
-                coverUrl = coverImg.getAttribute('data-src') || coverImg.getAttribute('data-original') || coverImg.getAttribute('src') || '';
-                if (/pixel|blank|placeholder|default|transparent|grey\.gif/i.test(coverUrl)) {
-                    coverUrl = '';
-                }
-                if (coverUrl && coverUrl.indexOf('//') === -1 && coverUrl.charAt(0) === '/') {
-                    coverUrl = 'https:' + coverUrl;
-                }
-            }
-
-            var info = {
-                title: (nbg.getAttribute('title') || nbg.textContent || '').trim(),
-                url: nbg.href || '',
-                cover: coverUrl
-            };
-
-            if (ratingEl) {
-                var rt = ratingEl.textContent.trim();
-                if (/[\d.]+/.test(rt)) info.rating = rt.match(/[\d.]+/)[0];
-            }
-
-            if (castEl) {
-                var parts = castEl.textContent.trim().split('/').map(function(s) { return s.trim(); });
-                if (parts.length >= 1) info.author = parts[0];
-                if (parts.length >= 2) info.publisher = parts[1];
-                if (parts.length >= 3) {
-                    var y = parts[2].match(/\d{4}/);
-                    if (y) info.year = y[0];
-                }
-            }
-
-            // metaEl 备选：.subject-cast 缺失时从 .pl 文本提取
-            if (!info.publisher && metaEl) {
-                var metaText = metaEl.textContent.trim();
-                var yearM = metaText.match(/\d{4}/);
-                if (yearM) info.year = yearM[0];
-                var pubM = metaText.match(/[^\/\s]+出版社/);
-                if (pubM) info.publisher = pubM[0];
-            }
-
-            results.push(info);
-        });
-
-        console.log('[豆瓣联动] 解析详情:', results.map(function(r) {
-            return r.title + ' | ' + (r.rating || '?') + '分 | ' + (r.author || '?') + ' | ' + (r.publisher || '?');
-        }));
-
-        return results.slice(0, 10);
-    }
-
-    var placeholderColors = [
+    let placeholderColors = [
         'background:linear-gradient(135deg,#667eea,#764ba2);',
         'background:linear-gradient(135deg,#f093fb,#f5576c);',
         'background:linear-gradient(135deg,#4facfe,#00f2fe);',
@@ -225,15 +158,15 @@
         listEl.innerHTML = '';
 
         results.forEach(function(b, i) {
-            var colorStyle = placeholderColors[i % placeholderColors.length];
-            var title = b.title || '?';
+            let colorStyle = placeholderColors[i % placeholderColors.length];
+            let title = b.title || '?';
 
             //封面 wrap
-            var wrap = document.createElement('div');
+            let wrap = document.createElement('div');
             wrap.className = 'wr-douban-cover-wrap';
 
             if (b.cover) {
-                var img = document.createElement('img');
+                let img = document.createElement('img');
                 img.className = 'wr-douban-cover-img';
                 img.src = b.cover;
                 img.referrerPolicy = 'no-referrer';
@@ -246,37 +179,37 @@
                 wrap.appendChild(img);
             }
 
-            var fallback = document.createElement('div');
+            let fallback = document.createElement('div');
             fallback.className = 'wr-douban-cover-fallback';
             fallback.style.cssText = colorStyle + (b.cover ? ';display:none' : '');
-            var fallbackSpan = document.createElement('span');
+            let fallbackSpan = document.createElement('span');
             fallbackSpan.textContent = title;
             fallback.appendChild(fallbackSpan);
             wrap.appendChild(fallback);
 
             // 信息区
-            var info = document.createElement('div');
+            let info = document.createElement('div');
             info.className = 'wr-douban-info';
 
-            var titleEl = document.createElement('div');
+            let titleEl = document.createElement('div');
             titleEl.className = 'wr-douban-title';
             titleEl.textContent = (i + 1) + '. ' + b.title;
             info.appendChild(titleEl);
 
-            var meta = document.createElement('div');
+            let meta = document.createElement('div');
             meta.className = 'wr-douban-meta';
             meta.textContent = [b.author, b.publisher, b.year].filter(Boolean).join(' | ');
             info.appendChild(meta);
 
             if (b.rating) {
-                var rating = document.createElement('div');
+                let rating = document.createElement('div');
                 rating.className = 'wr-douban-rating';
                 rating.textContent = '★ ' + b.rating;
                 info.appendChild(rating);
             }
 
             // 条目
-            var item = document.createElement('div');
+            let item = document.createElement('div');
             item.className = 'wr-douban-item';
             item.dataset.url = b.url;
             item.appendChild(wrap);
@@ -292,15 +225,15 @@
     // 监听搜索框回车
     document.addEventListener('keydown', function(e) {
         if (e.key !== 'Enter') return;
-        var active = document.activeElement;
+        let active = document.activeElement;
         if (!active || !active.classList.contains('wr_index_page_search_bar_input')) return;
-        var query = active.value.trim();
+        let query = active.value.trim();
         if (!query || query === lastQuery) return;
         lastQuery = query;
 
         console.log('[豆瓣联动] 搜索:', query);
         injectStyle();
-        var panel = createPanel(query);
+        let panel = createPanel(query);
         searchDouban(query, panel);
     }, true);
 
