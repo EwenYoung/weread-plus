@@ -23,6 +23,8 @@
 
     function getStyleEl() {
         if (_styleEl && _styleEl.parentNode) return _styleEl;
+        // SPA 导航可能替换 <head>，旧元素已脱离 DOM，清缓存强制重写
+        _styleCache = {};
         _styleEl = document.getElementById('wr-enhanced-styles');
         if (!_styleEl) {
             _styleEl = document.createElement('style');
@@ -104,23 +106,69 @@
     }
 
     // ======================== 样式应用 ========================
+    var _widthObserver = null;
+    var _widthRetryTimer = null;
+    var _applyingWidth = false;
+
     function applyWidth() {
         // 双栏模式下不应用宽屏
         if (isDoubleColumnMode()) return;
 
         let cfg = widths[widthIdx];
         let w = cfg.width || '';
-        let reader = document.querySelector('.readerContent');
-        if (!reader) return;
 
         if (w) {
+            // 第1层：CSS 样式表规则（持久存在，对抗普通内联样式）
+            addStyle('wideScreen', `
+                .readerContent { max-width: 100% !important; width: 100% !important; margin: 0 auto !important; }
+                .readerContent .readerChapterContent { max-width: 100% !important; width: auto !important; margin: 0 40px !important; }
+                .readerContent .app_content,
+                .readerContent .wr_various_font_provider_wrapper,
+                .readerContent .readerChapterContent_container,
+                .readerContent .renderTargetContainer,
+                .readerContent .renderTargetContent { max-width: 100% !important; width: auto !important; }
+                .readerTopBar, .readerTopBar_inner { max-width: 100% !important; }
+                .readerControls { align-items: flex-end !important; margin-left: 45.5% !important; }
+                .readerCatalog, .readerNotePanel { left: auto !important; right: 0 !important; }
+                .readerAIChatPanel { left: auto !important; right: 0 !important; width: 400px !important; max-width: 400px !important; }
+            `);
+
+            // 第2层：内联 !important 立即应用
+            _applyWidthInline(cfg);
+
+            // 第3层：监听微信读书覆盖样式，立即反击
+            startWidthObserver();
+
+            // Canvas 重渲染：微信读书用 Canvas 渲染文字，容器宽度变化后需重绘
+            // 等微信读书自己渲染完再触发（太早会干扰），2000ms applyWidth 兜底
+            setTimeout(reRenderCanvas, 800);
+        } else {
+            addStyle('wideScreen', '');
+            stopWidthObserver();
+        }
+
+        console.log('[悦读助手] applyWidth:', cfg.title);
+    }
+
+    function reRenderCanvas() {
+        var canvases = document.querySelectorAll('.readerChapterContent canvas, .renderTargetContent canvas');
+        if (canvases.length === 0) return;
+        // 触发 resize 事件 + display 切换，让微信读书的 Canvas 跟随新容器宽度重绘
+        window.dispatchEvent(new Event('resize'));
+        canvases.forEach(function(c) {
+            c.style.display = 'none';
+            c.offsetHeight; // force reflow
+            c.style.display = '';
+        });
+    }
+
+    function _applyWidthInline(cfg) {
+        var w = cfg.width;
+        var reader = document.querySelector('.readerContent');
+        if (reader) {
             reader.style.setProperty('max-width', w, 'important');
             reader.style.setProperty('width', w, 'important');
             reader.style.setProperty('margin', '0 auto', 'important');
-        } else {
-            reader.style.removeProperty('max-width');
-            reader.style.removeProperty('width');
-            reader.style.removeProperty('margin');
         }
 
         var innerSels = [
@@ -133,63 +181,119 @@
         ];
         innerSels.forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(el) {
-                if (w) {
-                    el.style.setProperty('max-width', '100%', 'important');
-                    el.style.setProperty('width', 'auto', 'important');
-                } else {
-                    el.style.removeProperty('max-width');
-                    el.style.removeProperty('width');
-                }
+                el.style.setProperty('max-width', '100%', 'important');
+                el.style.setProperty('width', 'auto', 'important');
             });
         });
 
+        // readerChapterContent 有微信读书默认 margin: 0 100px，清除
+        document.querySelectorAll('.readerContent .readerChapterContent').forEach(function(el) {
+            el.style.setProperty('margin', '0 40px', 'important');
+        });
+
         document.querySelectorAll('.readerTopBar, .readerTopBar_inner').forEach(function(el) {
-            if (w) el.style.setProperty('max-width', w, 'important');
-            else el.style.removeProperty('max-width');
+            el.style.setProperty('max-width', w, 'important');
         });
 
         var controls = document.querySelector('.readerControls');
         if (controls) {
-            if (w) {
-                controls.style.setProperty('align-items', cfg.alignItems, 'important');
-                controls.style.setProperty('margin-left', cfg.marginLeft, 'important');
-            } else {
-                controls.style.removeProperty('align-items');
-                controls.style.removeProperty('margin-left');
-            }
+            controls.style.setProperty('align-items', cfg.alignItems, 'important');
+            controls.style.setProperty('margin-left', cfg.marginLeft, 'important');
         }
 
-        // 修正目录/笔记在宽屏下的定位（它们用 position:fixed;left:50%，需要跟随按钮右移）
-        var sidePanels = ['.readerCatalog', '.readerNotePanel'];
-        sidePanels.forEach(function(sel) {
+        ['.readerCatalog', '.readerNotePanel'].forEach(function(sel) {
             var el = document.querySelector(sel);
-            if (!el) return;
-            if (w) {
+            if (el) {
                 el.style.setProperty('left', 'auto', 'important');
                 el.style.setProperty('right', '0', 'important');
-            } else {
-                el.style.removeProperty('left');
-                el.style.removeProperty('right');
             }
         });
 
-        // AI问书面板：宽屏下也右移，限制宽度避免右侧空白
-        var aiPanels = document.querySelectorAll('.readerAIChatPanel');
-        aiPanels.forEach(function(el) {
-            if (w) {
-                el.style.setProperty('left', 'auto', 'important');
-                el.style.setProperty('right', '0', 'important');
-                el.style.setProperty('width', '400px', 'important');
-                el.style.setProperty('max-width', '400px', 'important');
-            } else {
-                el.style.removeProperty('left');
-                el.style.removeProperty('right');
-                el.style.removeProperty('width');
-                el.style.removeProperty('max-width');
-            }
+        document.querySelectorAll('.readerAIChatPanel').forEach(function(el) {
+            el.style.setProperty('left', 'auto', 'important');
+            el.style.setProperty('right', '0', 'important');
+            el.style.setProperty('width', '400px', 'important');
+            el.style.setProperty('max-width', '400px', 'important');
+        });
+    }
+
+    function startWidthObserver() {
+        stopWidthObserver();
+
+        var targetSels = [
+            '.readerContent', '.app_content',
+            '.readerChapterContent', '.readerChapterContent_container',
+            '.renderTargetContainer', '.renderTargetContent',
+            '.readerTopBar', '.readerTopBar_inner', '.readerControls',
+            '.readerCatalog', '.readerNotePanel', '.readerAIChatPanel'
+        ];
+
+        var targets = [];
+        targetSels.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) { targets.push(el); });
         });
 
-        console.log('[悦读助手] applyWidth:', cfg.title);
+        if (targets.length === 0) {
+            // .readerContent 还未创建，500ms 后重试
+            _widthRetryTimer = setTimeout(startWidthObserver, 500);
+            return;
+        }
+        _widthRetryTimer = null;
+
+        _widthObserver = new MutationObserver(function(mutations) {
+            if (_applyingWidth) return;
+            _applyingWidth = true;
+
+            mutations.forEach(function(mutation) {
+                if (mutation.type !== 'attributes' || mutation.attributeName !== 'style') return;
+                var el = mutation.target;
+                if (el.matches('.readerContent')) {
+                    el.style.setProperty('max-width', '100%', 'important');
+                    el.style.setProperty('width', '100%', 'important');
+                    el.style.setProperty('margin', '0 auto', 'important');
+                } else if (el.matches('.readerTopBar, .readerTopBar_inner')) {
+                    el.style.setProperty('max-width', '100%', 'important');
+                } else if (el.matches('.readerControls')) {
+                    el.style.setProperty('align-items', 'flex-end', 'important');
+                    el.style.setProperty('margin-left', '45.5%', 'important');
+                } else if (el.matches('.readerCatalog, .readerNotePanel')) {
+                    el.style.setProperty('left', 'auto', 'important');
+                    el.style.setProperty('right', '0', 'important');
+                } else if (el.matches('.readerAIChatPanel')) {
+                    el.style.setProperty('left', 'auto', 'important');
+                    el.style.setProperty('right', '0', 'important');
+                    el.style.setProperty('width', '400px', 'important');
+                    el.style.setProperty('max-width', '400px', 'important');
+                } else if (el.matches('.readerChapterContent')) {
+                    el.style.setProperty('max-width', '100%', 'important');
+                    el.style.setProperty('width', 'auto', 'important');
+                    el.style.setProperty('margin', '0 40px', 'important');
+                } else {
+                    el.style.setProperty('max-width', '100%', 'important');
+                    el.style.setProperty('width', 'auto', 'important');
+                }
+            });
+
+            // ponytail: setTimeout 延迟清标志, 避免我们自己的 setProperty 触发的 mutation callback 再次进入
+            setTimeout(function() { _applyingWidth = false; }, 0);
+        });
+
+        targets.forEach(function(el) {
+            _widthObserver.observe(el, { attributes: true, attributeFilter: ['style'] });
+        });
+
+        console.log('[悦读助手] 宽屏样式监听已启动 (' + targets.length + ' 个元素)');
+    }
+
+    function stopWidthObserver() {
+        if (_widthObserver) {
+            _widthObserver.disconnect();
+            _widthObserver = null;
+        }
+        if (_widthRetryTimer) {
+            clearTimeout(_widthRetryTimer);
+            _widthRetryTimer = null;
+        }
     }
 
     function applyBgColor() {
@@ -967,12 +1071,9 @@
             _modeRetryTimers.push(setTimeout(applyBgColor, 1500));
         }
 
-        // 微信读书自身 JS 会在加载后重新计算布局，覆盖内联样式
-        // 延迟再跑一次 applyWidth 确保宽屏生效
+        // CSS 样式表规则持久生效，不必延时重试
         if (widthIdx === 1) {
-            setTimeout(applyWidth, 1000);
-            setTimeout(applyWidth, 2500);
-            setTimeout(applyWidth, 5000);
+            setTimeout(applyWidth, 2000);
         }
 
         // SPA 导航监听
@@ -1004,6 +1105,8 @@
         function startObserving() {
             var target = document.querySelector('.readerContent');
             if (!target) return;
+            applyWidth();
+            applyBgColor();
             mutationObserver = new MutationObserver(function() {
                 if (obsTimer) clearTimeout(obsTimer);
                 obsTimer = setTimeout(function() {
@@ -1019,6 +1122,7 @@
         var tryObserve = setInterval(function() {
             if (document.querySelector('.readerContent')) {
                 clearInterval(tryObserve);
+                applyWidth();
                 startObserving();
             }
         }, 500);
