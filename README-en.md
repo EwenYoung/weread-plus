@@ -192,4 +192,4 @@ Test cases live in `tests/`. After modifying a module, run `npm test` to confirm
 
 ## License
 
-No LICENSE file detected. Add a LICENSE to clarify project licensing.
+[MIT](LICENSE)

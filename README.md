@@ -192,4 +192,4 @@ weread-plus/
 
 ## 许可证
 
-本项目尚无 LICENSE 文件。请添加许可证以明确项目授权条款。
+[MIT](LICENSE)
