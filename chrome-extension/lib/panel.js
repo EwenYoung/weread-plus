@@ -26,16 +26,12 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
                 }
                 .wr-panel-body {
                     background: #faf6ee;
-                    background-image:
-                        radial-gradient(ellipse at 20% 50%, rgba(196,167,125,0.06) 0%, transparent 50%),
-                        radial-gradient(ellipse at 80% 20%, rgba(196,167,125,0.04) 0%, transparent 50%);
-                    backdrop-filter: blur(8px);
                     padding: 10px 12px;
                     border-radius: 10px;
                     max-height: 70vh; overflow-y: auto;
                     color: #3d3020; font-size: 12px;
                     min-width: 170px;
-                    box-shadow: -4px 4px 20px rgba(80,60,30,0.12), inset 0 0 30px rgba(196,167,125,0.04);
+                    box-shadow: -4px 4px 20px rgba(80,60,30,0.12);
                     border: 1px solid #e0d5c0;
                     position: relative;
                 }
@@ -101,11 +97,8 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
                 /* === 深色面板 === */
                 body:not(.wr_whiteTheme) .wr-panel-body {
                     background: #1c1c22;
-                    background-image:
-                        radial-gradient(ellipse at 20% 50%, rgba(140,120,90,0.06) 0%, transparent 50%),
-                        radial-gradient(ellipse at 80% 20%, rgba(140,120,90,0.04) 0%, transparent 50%);
                     color: #c8c0b4;
-                    box-shadow: -4px 4px 20px rgba(0,0,0,0.35), inset 0 0 30px rgba(140,120,90,0.03);
+                    box-shadow: -4px 4px 20px rgba(0,0,0,0.35);
                     border-color: #2e2e38;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-body h3 {
