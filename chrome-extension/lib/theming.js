@@ -390,7 +390,8 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
 
     function healReaderCanvases() {
         let theme = bgColors[store.get('bgIdx')];
-        let textRgb = hexToRgb(theme.type === 'dark' ? DARK_TEXT : LIGHT_TEXT);
+        let isDark = theme.type === 'dark';
+        let textRgb = hexToRgb(isDark ? DARK_TEXT : LIGHT_TEXT);
         let textLum = 0.299 * textRgb[0] + 0.587 * textRgb[1] + 0.114 * textRgb[2];
 
         collectReaderCanvases().forEach(function(c) {
@@ -400,8 +401,17 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
             let fg = info.fgColor;
             if (!fg) return;
             let fgLum = 0.299 * fg[0] + 0.587 * fg[1] + 0.114 * fg[2];
-            // 颜色已正确 → 静默返回（自愈循环会重复调用，避免刷屏）
-            if (Math.abs(fgLum - textLum) < 40) return;
+            if (theme.rgb) {
+                // 插件主题：期望文字色即插件常量，接近即正确（自愈循环会重复
+                // 调用，正确的保持静默，避免刷屏）
+                if (Math.abs(fgLum - textLum) < 40) return;
+            } else {
+                // 系统默认：原生文字色未必等于插件常量，不能按精确色距判断，
+                // 否则会误染健康的原生渲染。只按方向判断残留——文字亮度仍
+                // 属于旧模式（浅色模式下偏浅字 / 深色模式下偏深字）才重染
+                let looksHealthy = isDark ? fgLum >= 120 : fgLum < 120;
+                if (looksHealthy) return;
+            }
             if (info.transparentRatio <= 0.5) {
                 // 整页绘制层可能含插图，重染风险高，只记录不改写
                 healIssueLog(c, 'opaque', '整页绘制层颜色异常 rgb(' + fg.join(',') + ')，期望 rgb(' + textRgb.join(',') + ')，暂未处理');
@@ -435,8 +445,36 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
         }, 1000);
     }
 
+    // 撤除插件写入的内联文字色：仅匹配插件自身的两套颜色（#d4d4d4 / #333 的
+    // rgb 序列化形式），微信读书原生内联样式不受影响
+    function clearPluginTextColors() {
+        doc.querySelectorAll('[style*="color"]').forEach(function(el) {
+            if (!el.style.color) return;
+            let style = el.getAttribute('style') || '';
+            if (style.indexOf('212, 212, 212') !== -1 || style.indexOf('212,212,212') !== -1
+                || style.indexOf('51, 51, 51') !== -1 || style.indexOf('51,51,51') !== -1) {
+                el.style.removeProperty('color');
+            }
+        });
+    }
+
     function applyBgColor() {
         let theme = bgColors[store.get('bgIdx')];
+
+        // 系统默认（rgb 为空）：撤除插件配色，微信读书原生外观接管。
+        // 停掉文字色 observer（否则会把插件颜色重新强写回去），只清插件自己
+        // 写入的内联文字色，不动微信读书原生样式
+        if (!theme.rgb) {
+            stopColorObserver();
+            addStyle('bgColor', '');
+            clearPluginTextColors();
+            // 双栏模式 display 切换帮微信读书按原生色重绘 canvas；
+            // 滚动模式它自己会重绘，不干预
+            if (isDoubleColumnMode()) forceCanvasRedraw();
+            console.log('[悦读助手] applyBgColor: 系统默认（跟随微信读书原生外观）');
+            return;
+        }
+
         let color = theme.rgb;
         let isDark = theme.type === 'dark';
         let textColor = isDark ? DARK_TEXT : LIGHT_TEXT;

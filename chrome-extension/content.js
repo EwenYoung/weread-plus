@@ -9,15 +9,21 @@
         { title: "默认", width: "", alignItems: "flex-start", marginLeft: "" },
         { title: "宽屏", width: "100%", alignItems: "flex-end", marginLeft: "45.5%" },
     ];
+    // rgb 为 null 表示"系统默认"：插件撤除配色覆盖，微信读书原生外观接管。
+    // 每个模式的首个主题即该模式的默认状态
     const bgColors = [
+        { name: "系统默认", rgb: null, type: "light" },
         { name: "Claude 暖白", rgb: "#FAF5EE", type: "light" },
         { name: "Claude 米杏", rgb: "#F0E6D3", type: "light" },
         { name: "Claude 浅棕", rgb: "#E8DCC8", type: "light" },
-        { name: "杏仁黄", rgb: "#FAF9DE", type: "light" },
-        { name: "海天蓝", rgb: "#DCE2F1", type: "light" },
+        { name: "Kami 纸白", rgb: "#f5f4ed", type: "light" },
+        { name: "书页灰", rgb: "#DFDDD6", type: "light" },
+        { name: "淡珊瑚粉", rgb: "#F7E8E4", type: "light" },
+        { name: "草香", rgb: "#F5F8F3", type: "light" },
+        { name: "系统默认", rgb: null, type: "dark" },
         { name: "暗夜黑", rgb: "#1a1a2e", type: "dark" },
         { name: "深墨蓝", rgb: "#16213e", type: "dark" },
-        { name: "墨绿", rgb: "#1b3a2d", type: "dark" },
+        { name: "青夜", rgb: "#2A363F", type: "dark" },
         { name: "暗蓝灰", rgb: "#1e2d3d", type: "dark" },
         { name: "墨黛蓝", rgb: "#1a2a2e", type: "dark" },
         { name: "暗橄榄", rgb: "#1e2319", type: "dark" },
@@ -45,7 +51,8 @@
                 resolve(result[key] !== undefined ? result[key] : def);
             });
         }),
-        set: (key, value) => { chrome.storage.local.set({ [key]: value }); }
+        set: (key, value) => { chrome.storage.local.set({ [key]: value }); },
+        remove: (key) => { chrome.storage.local.remove(key); }
     };
 
     let store = null;
@@ -126,7 +133,6 @@
             store,
             theming,
             panel,
-            bgColors,
             doc: document,
             win: window,
             isSystemDarkMode

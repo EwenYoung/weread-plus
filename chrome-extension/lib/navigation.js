@@ -1,7 +1,7 @@
 // 导航与刷新模块：SPA 导航 + 模式监听 + 统一刷新流（StyleRefresher）
 // 各类"需要重应用样式"的事件统一入口，延时重试策略集中实现（替代原 modeRetryTimers 数组）
 
-export function createNavigation({ store, theming, panel, bgColors, doc, win, isSystemDarkMode }) {
+export function createNavigation({ store, theming, panel, doc, win, isSystemDarkMode }) {
     let retryTimers = [];
     let lastDarkMode = false;
     let lastUrl = '';
@@ -19,7 +19,7 @@ export function createNavigation({ store, theming, panel, bgColors, doc, win, is
         delays.forEach((d) => retryTimers.push(setTimeout(fn, d)));
     }
 
-    // 系统深浅色切换：换到当前模式第一个主题色，重建面板，重试覆盖。
+    // 系统深浅色切换：恢复该模式记住的主题，重建面板，重试覆盖。
     // isDark 由调用方传入事件给出的新模式，不能在回调里读 body class——
     // matchMedia 事件先于微信读书更新 body.wr_whiteTheme，此刻读到的是旧模式，
     // 会把旧深色主题重新写回微信读书正按新主题重渲染的 canvas，造成文字残留旧色
@@ -30,9 +30,9 @@ export function createNavigation({ store, theming, panel, bgColors, doc, win, is
         // 系统切换的 canvas 保护窗口 + 滚动模式兜底重绘（需先于新主题样式应用）
         theming.onSystemThemeChange();
 
-        // 切换到当前模式的第一个主题色（set 触发订阅者重应用样式）
-        let available = store.getAvailableColors(isDark);
-        store.set('bgIdx', bgColors.findIndex((c) => c.name === available[0].name));
+        // 恢复目标模式上次使用的主题，首次进入该模式时为该模式默认
+        //（set 触发订阅者重应用样式）
+        store.applySystemMode(isDark);
         panel.build();
         refreshWithRetry(theming.applyBgColor, [300, 800, 1500]);
     }

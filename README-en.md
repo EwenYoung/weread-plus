@@ -26,7 +26,7 @@
 | Feature | Description |
 |---|---|
 | **Wide Display** | Expands content to full width via CSS stylesheet + inline styles + MutationObserver — three layers that counter WeRead's own style overrides |
-| **Theme Colors** | 11 preset backgrounds (warm white, cream, midnight black, etc.), auto-switching available themes based on system dark/light mode |
+| **Theme Colors** | 16 presets (8 light + 8 dark, including "System Default" that follows WeRead's native look); light and dark modes each remember the last-used theme |
 | **Immersive Reading** | Hides top bar / bottom bar / controls; reveals on hover; scrollbar hidden |
 | **Auto Reader** | Scrolls by step, auto-turns page at bottom; spacebar toggles start/pause; supports auto-stop timer |
 | **Douban Integration** | Press Enter in WeRead homepage search box to show Douban results in a side panel (background Service Worker proxies cross-origin requests) |
@@ -73,7 +73,7 @@ Click the "Wide" button in the control panel to toggle between default and wide 
 
 ### Theme Colors
 
-Use the `‹` `›` arrows in the theme color row to cycle through presets. When the system switches between dark/light mode, the theme auto-falls back to the first available color for the current mode.
+Use the `‹` `›` arrows in the theme color row to cycle through presets. Light and dark modes are independent: when the system switches between them, the theme last used in that mode is restored (the mode's default applies on first entry), persisting across sessions. Choosing "System Default" removes all plugin color overrides and fully follows WeRead's native appearance.
 
 ### Auto Reader
 
@@ -119,7 +119,8 @@ All settings are persisted via `chrome.storage.local` and survive SPA navigation
 | Key | Description | Default | Options |
 |---|---|---|---|
 | `widthIdx` | Page width mode | `0` (default) | `0` default / `1` wide |
-| `bgIdx` | Theme color index | `0` (Claude Warm White) | `0`–`10`, 11 presets |
+| `lightBgIdx` | Light-mode theme index | `0` (System Default) | `0`–`7`, 8 presets |
+| `darkBgIdx` | Dark-mode theme index | `8` (System Default) | `8`–`15`, 8 presets |
 | `autoMode` | Auto mode toggle | `0` (off, auto-reader available) | `0` off / `1` on |
 | `scrollStep` | Auto-scroll step (px) | `2` | `1, 2, 3, 5, 8` |
 | `scrollInterval` | Auto-scroll interval (ms) | `30` | `20, 30, 50, 80, 100` |
