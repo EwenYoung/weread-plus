@@ -7,13 +7,15 @@ const DARK_TEXT = '#d4d4d4';
 const LIGHT_TEXT = '#333333';
 
 // ---- 宽屏规则表（单一数据源：CSS 内联层与 MutationObserver 层共用）----
+// 正文两侧气口：按视口宽度取百分比，1920 屏每侧约 230px，避免正文撑满全屏
+const WIDE_BODY_MARGIN = '0 12%';
 const WIDE_RULES = [
     { sel: '.readerContent', props: { 'max-width': '100%', 'width': '100%', 'margin': '0 auto' } },
     { sel: '.readerTopBar, .readerTopBar_inner', props: { 'max-width': '100%' } },
     { sel: '.readerControls', props: { 'align-items': 'flex-end', 'margin-left': '45.5%' } },
     { sel: '.readerCatalog, .readerNotePanel', props: { 'left': 'auto', 'right': '0' } },
     { sel: '.readerAIChatPanel', props: { 'left': 'auto', 'right': '0', 'width': '400px', 'max-width': '400px' } },
-    { sel: '.readerChapterContent', props: { 'max-width': '100%', 'width': 'auto', 'margin': '0 40px' } },
+    { sel: '.readerChapterContent', props: { 'max-width': '100%', 'width': 'auto', 'margin': WIDE_BODY_MARGIN } },
     { sel: '.app_content, .wr_various_font_provider_wrapper, .readerChapterContent_container, .renderTargetContainer, .renderTargetContent',
         props: { 'max-width': '100%', 'width': 'auto' } }
 ];
@@ -27,7 +29,7 @@ const WIDE_RULES = [
 export function buildWidescreenCss() {
     return `
 .readerContent { max-width: 100% !important; width: 100% !important; margin: 0 auto !important; }
-.readerContent .readerChapterContent { max-width: 100% !important; width: auto !important; margin: 0 40px !important; }
+.readerContent .readerChapterContent { max-width: 100% !important; width: auto !important; margin: ${WIDE_BODY_MARGIN} !important; }
 .readerContent .app_content,
 .readerContent .wr_various_font_provider_wrapper,
 .readerContent .readerChapterContent_container,
