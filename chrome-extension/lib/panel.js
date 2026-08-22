@@ -322,8 +322,11 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
 
         let bgName = panel.querySelector('.wr-bg-name');
         if (bgName) {
-            // 当前主题色在系统模式下不可用时回退（内部 set 会触发订阅者重应用样式）
-            store.ensureThemeAvailable();
+            // 注意：这里绝不能调 store.ensureThemeAvailable()。它读 body class 判断
+            // 可用主题，而系统深浅色切换瞬间 body class 尚未更新，它会按旧模式把
+            // handleModeChange 刚选好的新主题同步改回去，导致切换后卡在旧主题、
+            // 文字色画错进 canvas（正文看不清）。模式切换时的主题校正由
+            // navigation.handleModeChange 全权负责
             bgName.textContent = bgColors[store.get('bgIdx')].name;
         }
 

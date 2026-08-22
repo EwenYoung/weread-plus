@@ -56,9 +56,11 @@ export function createStore({ storage, bgColors, widths, isSystemDarkMode }) {
         return next;
     }
 
-    // 当前系统模式下可用的主题色
-    function getAvailableColors() {
-        const isDark = isSystemDarkMode();
+    // 当前系统模式下可用的主题色。
+    // forceDark：系统切换事件发生时必须传入事件携带的新模式——事件先于微信读书
+    // 更新 body.wr_whiteTheme，此刻 isSystemDarkMode() 读到的是旧模式
+    function getAvailableColors(forceDark) {
+        const isDark = forceDark !== undefined ? forceDark : isSystemDarkMode();
         return bgColors.filter((c) => (isDark && c.type === 'dark') || (!isDark && c.type === 'light'));
     }
 
@@ -79,7 +81,9 @@ export function createStore({ storage, bgColors, widths, isSystemDarkMode }) {
         set('bgIdx', bgColors.findIndex((c) => c.name === next.name));
     }
 
-    // 当前主题色在系统模式下不可用时回退到第一个可用色，返回是否发生回退
+    // 当前主题色在系统模式下不可用时回退到第一个可用色，返回是否发生回退。
+    // 警告：不要在系统深浅色切换的过渡期调用（如 store 订阅回调）——过渡期
+    // body class 尚未更新，此函数会按旧模式回退，覆盖调用方刚设置的新主题
     function ensureThemeAvailable() {
         const available = getAvailableColors();
         const current = bgColors[get('bgIdx')];

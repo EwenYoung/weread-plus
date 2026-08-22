@@ -118,6 +118,24 @@ test('ensureThemeAvailable：可用时不回退', async () => {
     assert.equal(store.get('bgIdx'), 2);
 });
 
+test('getAvailableColors：显式传 false 按浅色过滤（系统切换事件语义）', async () => {
+    const store = makeStore({ isDark: true }); // body class 读作深色（尚未翻转）
+    await store.load();
+    assert.deepEqual(store.getAvailableColors(false).map((c) => c.name), ['暖白', '米杏']);
+});
+
+test('getAvailableColors：显式传 true 按深色过滤', async () => {
+    const store = makeStore({ isDark: false });
+    await store.load();
+    assert.deepEqual(store.getAvailableColors(true).map((c) => c.name), ['暗夜黑', '深墨蓝']);
+});
+
+test('getAvailableColors：不传参沿用 body class 判断', async () => {
+    const store = makeStore({ isDark: true });
+    await store.load();
+    assert.deepEqual(store.getAvailableColors().map((c) => c.name), ['暗夜黑', '深墨蓝']);
+});
+
 test('handleAction：width 环绕并标记 reload', async () => {
     const store = makeStore();
     await store.load();

@@ -1,6 +1,11 @@
 // 样式应用模块：宽屏 + 主题颜色 + 沉浸式
 // CSS 生成部分为纯函数（可测试）；DOM 操作部分注入 doc/win
 
+// 滚动模式正文文字色（深色主题配浅字、浅色主题配深字）。
+// CSS 生成、内联覆盖与 canvas 像素自愈共用，避免多处硬编码后不同步
+const DARK_TEXT = '#d4d4d4';
+const LIGHT_TEXT = '#333333';
+
 // ---- 宽屏规则表（单一数据源：CSS 内联层与 MutationObserver 层共用）----
 const WIDE_RULES = [
     { sel: '.readerContent', props: { 'max-width': '100%', 'width': '100%', 'margin': '0 auto' } },
@@ -39,7 +44,7 @@ export function buildWidescreenCss() {
 export function buildBgCss(theme, isDualColumn) {
     const color = theme.rgb;
     const isDark = theme.type === 'dark';
-    const textColor = isDark ? '#d4d4d4' : '#333333';
+    const textColor = isDark ? DARK_TEXT : LIGHT_TEXT;
     const subTextColor = isDark ? '#a0a0a0' : '#555555';
 
     const base = `
@@ -93,6 +98,9 @@ body::-webkit-scrollbar { display: none !important; }
 export function createTheming({ store, doc, win, widths, bgColors, isDoubleColumnMode }) {
     let styleEl = null;
     let styleCache = {};
+    // 系统深浅色切换的 canvas 保护窗口（见 onSystemThemeChange）
+    let canvasToggleSuppressedUntil = 0;
+    let systemThemeGen = 0;
 
     // 滚动模式强制覆盖的内联文字颜色选择器
     const TEXT_SELECTORS = [
@@ -184,8 +192,27 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
         console.log('[悦读助手] applyWidth:', cfg.title);
     }
 
+    // 收集正文 canvas。优先精确选择器；微信读书改版可能更换类名导致选择器
+    // 静默失效（历史上因此让 canvas 修复失灵），匹配不到时退化为 reader 容器内
+    // 的全部 canvas（按尺寸过滤图标类小 canvas）。不退化到全页面 canvas：
+    // 评论区等处的画布会被误分析误染
+    function collectReaderCanvases() {
+        let canvases = doc.querySelectorAll('.readerChapterContent canvas, .renderTargetContent canvas, .wr_canvasContainer canvas');
+        if (canvases.length === 0) {
+            canvases = Array.prototype.filter.call(
+                doc.querySelectorAll('.readerContent canvas, .app_content canvas'),
+                function(c) { return c.width >= 200 || c.height >= 200; }
+            );
+        }
+        return canvases;
+    }
+
     function reRenderCanvas() {
-        let canvases = doc.querySelectorAll('.readerChapterContent canvas, .renderTargetContent canvas');
+        // 系统深浅色切换的保护窗口内不 display 切换 canvas：会打断微信读书按新主题的
+        // 重渲染（实测导致文字残留旧主题色）
+        if (win.performance.now() < canvasToggleSuppressedUntil) return;
+        let canvases = collectReaderCanvases();
+        console.log('[悦读助手] reRenderCanvas:', canvases.length, '个 canvas (宽屏)');
         if (canvases.length === 0) return;
         // 触发 resize 事件 + display 切换，让微信读书的 Canvas 跟随新容器宽度重绘
         win.dispatchEvent(new win.Event('resize'));
@@ -254,6 +281,141 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
 
     // ======================== 主题颜色 ========================
 
+    // 系统深浅色切换处理（由 navigation 在切换第一时间调用，先于新主题样式应用）：
+    // 1. 开启保护窗口：窗口内 reRenderCanvas（宽屏路径）不得 display 切换 canvas，
+    //    避免打断微信读书按新主题的重渲染；
+    // 2. 立即开始像素自愈循环（见 healReaderCanvases），修正 canvas 里残留的旧主题像素
+    function onSystemThemeChange() {
+        systemThemeGen++;
+        let gen = systemThemeGen;
+        canvasToggleSuppressedUntil = win.performance.now() + 3500;
+        healIssueKeys = new Set(); // 异常日志重新计数：新一次切换的问题重新提示
+        // 像素自愈：切换瞬间（setTimeout 0，在 handleModeChange 应用新主题之后）立即
+        // 改写 canvas 旧像素，把"灰字窗口期"压到最短；随后重复几次，对抗微信读书
+        // 迟到的重绘把颜色改回去（幂等，颜色已正确时是空操作）。
+        // 不再做 display 切换：新版微信读书不响应它，只会白闪一帧
+        [0, 300, 800, 1500, 2500, 3500].forEach(function(delay) {
+            setTimeout(function() {
+                if (gen !== systemThemeGen) return; // 期间又切换了一次，交给最新一轮自愈
+                if (isDoubleColumnMode()) return;   // 双栏模式由 forceCanvasRedraw 覆盖
+                healReaderCanvases();
+            }, delay);
+        });
+    }
+
+    // ======================== Canvas 像素自愈 ========================
+    // 微信读书滚动模式正文由 canvas 渲染。系统深浅色切换时它在翻转 body class 之前
+    // 就按旧文字色画好了 canvas，之后不再重绘，也不响应 resize/display 切换（新版
+    // 实测）——CSS 无法修正已画好的位图，只能读取像素分析后直接改写
+
+    // 自愈异常日志去重：同一问题在一次系统切换的多轮自愈中只提示一次
+    let healIssueKeys = null;
+
+    function hexToRgb(hex) {
+        return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+    }
+
+    // 采样分析 canvas，区分"纯文字层"（大量透明像素）与"整页绘制层"（不透明）。
+    // 像素读取经自建的 willReadFrequently 离屏画布中转：微信读书的 canvas 上下文
+    // 创建时没带该标志且无法补设（仅首次创建生效），直接反复 getImageData 会触发
+    // Chrome 回读性能警告。分析用缩小副本（长画布全尺寸读取可达数十 MB、每轮自愈
+    // 都要读），只在确认需要重染时才由 recolorTextCanvas 做全尺寸读改写。
+    // 返回 null 表示像素不可读（跨域污染 / 零尺寸）
+    function analyzeCanvas(c) {
+        let scale = Math.min(1, 256 / Math.max(c.width, c.height));
+        let w = Math.max(1, Math.round(c.width * scale));
+        let h = Math.max(1, Math.round(c.height * scale));
+        let buf = doc.createElement('canvas');
+        buf.width = w;
+        buf.height = h;
+        let bctx = null;
+        try {
+            bctx = buf.getContext('2d', { willReadFrequently: true });
+            if (bctx) bctx.drawImage(c, 0, 0, w, h);
+        } catch (e) { return null; }
+        if (!bctx) return null;
+        let img;
+        try { img = bctx.getImageData(0, 0, w, h); } catch (e) { return null; }
+        let d = img.data;
+        let transparent = 0, total = 0, fgN = 0, fgR = 0, fgG = 0, fgB = 0;
+        for (let i = 0; i < d.length; i += 4) { // 副本已缩小，全量遍历也很快
+            total++;
+            if (d[i + 3] < 32) { transparent++; continue; }
+            fgN++; fgR += d[i]; fgG += d[i + 1]; fgB += d[i + 2];
+        }
+        if (total === 0) return null;
+        return {
+            transparentRatio: transparent / total,
+            fgColor: fgN ? [Math.round(fgR / fgN), Math.round(fgG / fgN), Math.round(fgB / fgN)] : null
+        };
+    }
+
+    // 纯文字层重染（全尺寸读改写一次完成）：只改与检测到的旧文字色相近的像素，
+    // 保留 alpha（含抗锯齿边缘）——画布内的彩色标注/线条不参与重染。
+    // 返回 false 表示无法读取或无法写回（WebGL/离屏渲染 canvas 拿不到 2D 上下文）
+    function recolorTextCanvas(c, oldRgb, textRgb) {
+        let buf = doc.createElement('canvas');
+        buf.width = c.width;
+        buf.height = c.height;
+        let bctx = null;
+        try {
+            bctx = buf.getContext('2d', { willReadFrequently: true });
+            if (bctx) bctx.drawImage(c, 0, 0);
+        } catch (e) { return false; }
+        if (!bctx) return false;
+        let img;
+        try { img = bctx.getImageData(0, 0, c.width, c.height); } catch (e) { return false; }
+        let writeCtx = null;
+        try { writeCtx = c.getContext('2d'); } catch (e) { writeCtx = null; }
+        if (!writeCtx) return false;
+        let d = img.data;
+        let or = oldRgb[0], og = oldRgb[1], ob = oldRgb[2];
+        for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] === 0) continue;
+            let dr = d[i] - or, dg = d[i + 1] - og, db = d[i + 2] - ob;
+            if (dr * dr + dg * dg + db * db > 120 * 120) continue; // 非旧文字色的像素不动
+            d[i] = textRgb[0]; d[i + 1] = textRgb[1]; d[i + 2] = textRgb[2];
+        }
+        writeCtx.putImageData(img, 0, 0);
+        return true;
+    }
+
+    function healIssueLog(c, tag, msg) {
+        let key = tag + ':' + c.width + 'x' + c.height;
+        if (healIssueKeys && healIssueKeys.has(key)) return;
+        if (!healIssueKeys) healIssueKeys = new Set();
+        healIssueKeys.add(key);
+        console.log('[悦读助手] canvas 自愈:', c.width + 'x' + c.height, msg);
+    }
+
+    function healReaderCanvases() {
+        let theme = bgColors[store.get('bgIdx')];
+        let textRgb = hexToRgb(theme.type === 'dark' ? DARK_TEXT : LIGHT_TEXT);
+        let textLum = 0.299 * textRgb[0] + 0.587 * textRgb[1] + 0.114 * textRgb[2];
+
+        collectReaderCanvases().forEach(function(c) {
+            if (!c.width || !c.height) return;
+            let info = analyzeCanvas(c);
+            if (!info) { healIssueLog(c, 'unreadable', '像素不可读（canvas 被跨域资源污染），跳过'); return; }
+            let fg = info.fgColor;
+            if (!fg) return;
+            let fgLum = 0.299 * fg[0] + 0.587 * fg[1] + 0.114 * fg[2];
+            // 颜色已正确 → 静默返回（自愈循环会重复调用，避免刷屏）
+            if (Math.abs(fgLum - textLum) < 40) return;
+            if (info.transparentRatio <= 0.5) {
+                // 整页绘制层可能含插图，重染风险高，只记录不改写
+                healIssueLog(c, 'opaque', '整页绘制层颜色异常 rgb(' + fg.join(',') + ')，期望 rgb(' + textRgb.join(',') + ')，暂未处理');
+                return;
+            }
+            if (recolorTextCanvas(c, fg, textRgb)) {
+                console.log('[悦读助手] canvas 自愈:', c.width + 'x' + c.height,
+                    '重染 rgb(' + fg.join(',') + ') → rgb(' + textRgb.join(',') + ')');
+            } else {
+                healIssueLog(c, 'nowrite', '像素可读但无法写回（WebGL/离屏渲染 canvas），跳过');
+            }
+        });
+    }
+
     // 强制 Canvas 重渲染（仅双栏模式）：微信读书双栏切主题时会创建新 Canvas 却用旧主题色渲染，
     // 需 display 切换强制重绘。滚动模式禁用此方法——微信读书会自己重渲染，打断反而破坏它。
     // 延迟 1s 执行并确认模式：微信读书模式切换（双栏→滚动）期间 applyBgColor 可能误判双栏，
@@ -277,7 +439,7 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
         let theme = bgColors[store.get('bgIdx')];
         let color = theme.rgb;
         let isDark = theme.type === 'dark';
-        let textColor = isDark ? '#d4d4d4' : '#333333';
+        let textColor = isDark ? DARK_TEXT : LIGHT_TEXT;
         let isDualColumn = isDoubleColumnMode();
 
         if (isDualColumn) {
@@ -351,7 +513,7 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
             applyingColor = true;
             let theme = bgColors[store.get('bgIdx')];
             let isDark = theme.type === 'dark';
-            let textColor = isDark ? '#d4d4d4' : '#333333';
+            let textColor = isDark ? DARK_TEXT : LIGHT_TEXT;
             // 只处理内联声明了 color 的元素，避免误伤 background-color 等
             doc.querySelectorAll('[style*="color"]').forEach(function(el) {
                 if (!el.style.color) return;
@@ -383,6 +545,6 @@ export function createTheming({ store, doc, win, widths, bgColors, isDoubleColum
     }
 
     return {
-        applyAll, applyWidth, applyBgColor, applyImmersive
+        applyAll, applyWidth, applyBgColor, applyImmersive, onSystemThemeChange
     };
 }

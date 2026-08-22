@@ -65,6 +65,11 @@
         store.subscribe(onStoreChange);
         await store.load();
 
+        // 启动时校正存储主题与系统模式的失配（如上次深色下退出、这次浅色打开）。
+        // 此时 body class 已稳定，无切换过渡期竞态（勿在 store 订阅回调里调用，
+        // 见 preferences.js 中 ensureThemeAvailable 的警示注释）
+        store.ensureThemeAvailable();
+
         theming.applyAll();
         panel.build();
         autoReader.initSpaceKey();

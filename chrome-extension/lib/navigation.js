@@ -19,35 +19,47 @@ export function createNavigation({ store, theming, panel, bgColors, doc, win, is
         delays.forEach((d) => retryTimers.push(setTimeout(fn, d)));
     }
 
-    // 系统深浅色切换：换到当前模式第一个主题色，重建面板，重试覆盖
-    function handleModeChange() {
+    // 系统深浅色切换：换到当前模式第一个主题色，重建面板，重试覆盖。
+    // isDark 由调用方传入事件给出的新模式，不能在回调里读 body class——
+    // matchMedia 事件先于微信读书更新 body.wr_whiteTheme，此刻读到的是旧模式，
+    // 会把旧深色主题重新写回微信读书正按新主题重渲染的 canvas，造成文字残留旧色
+    function handleModeChange(isDark) {
         // 清除上一轮的延时重试，防止快速切换时堆积
         clearRetryTimers();
 
+        // 系统切换的 canvas 保护窗口 + 滚动模式兜底重绘（需先于新主题样式应用）
+        theming.onSystemThemeChange();
+
         // 切换到当前模式的第一个主题色（set 触发订阅者重应用样式）
-        let available = store.getAvailableColors();
+        let available = store.getAvailableColors(isDark);
         store.set('bgIdx', bgColors.findIndex((c) => c.name === available[0].name));
         panel.build();
         refreshWithRetry(theming.applyBgColor, [300, 800, 1500]);
     }
 
+    // 双信号去重：prefers-color-scheme 事件与 body class 变化都会报告系统模式切换，
+    // 先到的信号已处理完成，后到的直接跳过
+    function onSystemModeChange(isDark) {
+        if (isDark === lastDarkMode) return;
+        lastDarkMode = isDark;
+        console.log('[悦读助手] 系统深色模式切换:', isDark ? '深色' : '浅色');
+        handleModeChange(isDark);
+    }
+
     function startModeWatching() {
         lastDarkMode = isSystemDarkMode();
 
-        // 监听系统深色/浅色模式变化（prefers-color-scheme）
-        win.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+        // 监听系统深色/浅色模式变化（prefers-color-scheme）。
+        // 用事件携带的新模式（e.matches），不读 body class（此刻尚未更新）
+        win.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
             console.log('[悦读助手] prefers-color-scheme 切换');
-            handleModeChange();
+            onSystemModeChange(e.matches);
         });
 
-        // 监听 body/html class 变化（微信读书自己的深色模式切换）
+        // 监听 body/html class 变化（微信读书自己的深色模式切换）。
+        // class 变化时 body 已是新状态，读 isSystemDarkMode() 是准确的
         let modeObserver = new MutationObserver(function() {
-            let currentDark = isSystemDarkMode();
-            if (currentDark !== lastDarkMode) {
-                console.log('[悦读助手] 系统深色模式切换:', currentDark ? '深色' : '浅色');
-                lastDarkMode = currentDark;
-                handleModeChange();
-            }
+            onSystemModeChange(isSystemDarkMode());
         });
         modeObserver.observe(doc.body, { attributes: true, attributeFilter: ['class'] });
         modeObserver.observe(doc.documentElement, { attributes: true, attributeFilter: ['class'] });
