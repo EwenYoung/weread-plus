@@ -12,3 +12,5 @@ coverage/
 docs/
 .handoff/
 .zcode/
+.retro/
+.scratch/
