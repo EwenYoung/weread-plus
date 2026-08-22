@@ -25,45 +25,45 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
                     cursor: pointer;
                 }
                 .wr-panel-body {
-                    background: #faf6ee;
+                    background: #fbfbfa;
                     padding: 10px 12px;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     max-height: 70vh; overflow-y: auto;
-                    color: #3d3020; font-size: 12px;
+                    color: #1c1c1e; font-size: 12px;
                     min-width: 170px;
-                    box-shadow: -4px 4px 20px rgba(80,60,30,0.12);
-                    border: 1px solid #e0d5c0;
+                    box-shadow: -4px 4px 16px rgba(0,0,0,0.10);
+                    border: 1px solid #e7e7e4;
                     position: relative;
                 }
                 .wr-panel-body h3 {
-                    margin: 0 0 8px 0; font-size: 13px; color: #7a5c3a;
-                    border-bottom: 1px solid #e0d5c0; padding-bottom: 6px;
-                    font-weight: 600; letter-spacing: 0.5px;
+                    margin: 0 0 8px 0; font-size: 13px; color: #1c1c1e;
+                    border-bottom: 1px solid #e7e7e4; padding-bottom: 6px;
+                    font-weight: 600; letter-spacing: 2px;
                 }
                 .wr-panel-row {
                     display: flex; justify-content: space-between; align-items: center;
-                    padding: 4px 0; border-bottom: 1px dotted rgba(120,90,50,0.15);
+                    padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.06);
                 }
-                .wr-panel-row span.wr-label { color: #8a7560; flex-shrink: 0; margin-right: 8px; font-size: 11px; }
+                .wr-panel-row span.wr-label { color: #6e6e73; flex-shrink: 0; margin-right: 8px; font-size: 11px; }
                 .wr-panel-row button {
-                    background: rgba(196,167,125,0.12); border: 1px solid rgba(196,167,125,0.2); color: #5a4530;
+                    background: transparent; border: 1px solid #d6d6d3; color: #1c1c1e;
                     padding: 2px 8px; border-radius: 4px; cursor: pointer;
                     font-size: 11px; white-space: nowrap;
                     transition: 0.15s ease;
                 }
-                .wr-panel-row button:hover { background: rgba(196,167,125,0.25); border-color: rgba(196,167,125,0.4); }
-                .wr-panel-row button.wr-active { background: rgba(196,167,125,0.25); border-color: rgba(196,167,125,0.4); }
+                .wr-panel-row button:hover { border-color: #1c1c1e; }
+                .wr-panel-row button.wr-active { background: #1c1c1e; border-color: #1c1c1e; color: #fbfbfa; }
                 .wr-btn-group { display: flex; align-items: center; gap: 3px; }
                 .wr-btn-arrow {
-                    background: rgba(196,167,125,0.12); border: 1px solid rgba(196,167,125,0.2); color: #5a4530;
+                    background: transparent; border: 1px solid #d6d6d3; color: #1c1c1e;
                     width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
                     font-size: 12px; line-height: 1; padding: 0;
                     display: flex; align-items: center; justify-content: center;
                     transition: 0.15s ease;
                 }
-                .wr-btn-arrow:hover { background: rgba(196,167,125,0.3); border-color: rgba(196,167,125,0.5); }
-                .wr-bg-name { font-size: 11px; color: #8a7560; min-width: 56px; text-align: center; }
-                .wr-sub-val { font-size: 11px; color: #5a4530; min-width: 50px; text-align: center; }
+                .wr-btn-arrow:hover { background: #1c1c1e; border-color: #1c1c1e; color: #fbfbfa; }
+                .wr-bg-name { font-size: 11px; color: #3a3a3c; min-width: 56px; text-align: center; }
+                .wr-sub-val { font-size: 11px; color: #3a3a3c; min-width: 50px; text-align: center; }
                 .wr-sub-row {
                     padding-left: 12px !important; opacity: 0.85;
                     max-height: 0; overflow: hidden; padding: 0; border: none;
@@ -72,7 +72,7 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
                 .wr-sub-row .wr-label { font-size: 10px; }
                 .wr-panel-body.wr-auto-on .wr-sub-row {
                     max-height: 40px; padding: 4px 0;
-                    border-bottom: 1px dotted rgba(120,90,50,0.15); opacity: 0.85;
+                    border-bottom: 1px solid rgba(0,0,0,0.06); opacity: 0.85;
                 }
                 .wr-panel-actions {
                     display: flex; gap: 4px; flex-wrap: wrap; padding-left: 12px;
@@ -84,86 +84,79 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
                 }
                 .wr-panel-actions button {
                     flex: 1; padding: 2px 8px;
-                    border-radius: 10px; border: none; cursor: pointer;
+                    border-radius: 4px; cursor: pointer;
                     font-size: 11px; transition: 0.15s;
                 }
-                .wr-btn-play { background: rgba(160,128,80,0.2); color: #5a4530; border: 1px solid rgba(160,128,80,0.3); border-radius: 4px; }
-                .wr-btn-play:hover { background: rgba(160,128,80,0.35); }
-                .wr-btn-stop { background: rgba(120,90,50,0.2); color: #4a3520; border: 1px solid rgba(120,90,50,0.3); border-radius: 4px; }
-                .wr-btn-stop:hover { background: rgba(120,90,50,0.35); }
-                .wr-btn-mode { background: rgba(160,128,80,0.2); color: #5a4530; }
-                .wr-btn-mode:hover { background: rgba(160,128,80,0.35); }
+                .wr-btn-play { background: #1c1c1e; color: #fbfbfa; border: 1px solid #1c1c1e; }
+                .wr-btn-play:hover { background: #333336; border-color: #333336; }
+                .wr-btn-stop { background: transparent; color: #1c1c1e; border: 1px solid #1c1c1e; }
+                .wr-btn-stop:hover { background: #1c1c1e; color: #fbfbfa; }
 
                 /* === 深色面板 === */
                 body:not(.wr_whiteTheme) .wr-panel-body {
-                    background: #1c1c22;
-                    color: #c8c0b4;
-                    box-shadow: -4px 4px 20px rgba(0,0,0,0.35);
-                    border-color: #2e2e38;
+                    background: #1b1b1e;
+                    color: #d6d6da;
+                    box-shadow: -4px 4px 16px rgba(0,0,0,0.4);
+                    border-color: #2c2c30;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-body h3 {
-                    color: #a89880;
-                    border-bottom-color: #2e2e38;
+                    color: #ebebee;
+                    border-bottom-color: #2c2c30;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-row {
-                    border-bottom-color: rgba(140,120,90,0.12);
+                    border-bottom-color: rgba(255,255,255,0.07);
                 }
                 body:not(.wr_whiteTheme) .wr-panel-row span.wr-label {
-                    color: #8a8070;
+                    color: #83838a;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-row button {
-                    background: rgba(140,120,90,0.12);
-                    border-color: rgba(140,120,90,0.2);
-                    color: #b0a490;
+                    border-color: #3c3c42;
+                    color: #d6d6da;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-row button:hover {
-                    background: rgba(140,120,90,0.25);
-                    border-color: rgba(140,120,90,0.4);
+                    border-color: #9a9aa2;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-row button.wr-active {
-                    background: rgba(140,120,90,0.25);
-                    border-color: rgba(140,120,90,0.4);
+                    background: #e8e8ec;
+                    border-color: #e8e8ec;
+                    color: #1b1b1e;
                 }
                 body:not(.wr_whiteTheme) .wr-btn-arrow {
-                    background: rgba(140,120,90,0.12);
-                    border-color: rgba(140,120,90,0.2);
-                    color: #b0a490;
+                    border-color: #3c3c42;
+                    color: #d6d6da;
                 }
                 body:not(.wr_whiteTheme) .wr-btn-arrow:hover {
-                    background: rgba(140,120,90,0.3);
-                    border-color: rgba(140,120,90,0.5);
+                    background: #e8e8ec;
+                    border-color: #e8e8ec;
+                    color: #1b1b1e;
                 }
                 body:not(.wr_whiteTheme) .wr-bg-name {
-                    color: #8a8070;
+                    color: #b0b0b6;
                 }
                 body:not(.wr_whiteTheme) .wr-sub-val {
-                    color: #b0a490;
+                    color: #b0b0b6;
                 }
                 body:not(.wr_whiteTheme) .wr-panel-body.wr-auto-on .wr-sub-row {
-                    border-bottom-color: rgba(140,120,90,0.12);
+                    border-bottom-color: rgba(255,255,255,0.07);
                 }
                 body:not(.wr_whiteTheme) .wr-btn-play {
-                    background: rgba(140,120,90,0.18);
-                    color: #b0a490;
-                    border-color: rgba(140,120,90,0.25);
+                    background: #e8e8ec;
+                    color: #1b1b1e;
+                    border-color: #e8e8ec;
                 }
                 body:not(.wr_whiteTheme) .wr-btn-play:hover {
-                    background: rgba(140,120,90,0.32);
+                    background: #ffffff;
+                    border-color: #ffffff;
                 }
                 body:not(.wr_whiteTheme) .wr-btn-stop {
-                    background: rgba(110,90,60,0.2);
-                    color: #a89880;
-                    border-color: rgba(110,90,60,0.3);
+                    background: transparent;
+                    color: #d6d6da;
+                    border-color: #9a9aa2;
                 }
                 body:not(.wr_whiteTheme) .wr-btn-stop:hover {
-                    background: rgba(110,90,60,0.35);
-                }
-                body:not(.wr_whiteTheme) .wr-btn-mode {
-                    background: rgba(140,120,90,0.18);
-                    color: #b0a490;
-                }
-                body:not(.wr_whiteTheme) .wr-btn-mode:hover {
-                    background: rgba(140,120,90,0.32);
+                    background: #e8e8ec;
+                    border-color: #e8e8ec;
+                    color: #1b1b1e;
                 }
             `;
             doc.head.appendChild(s);

@@ -18,7 +18,7 @@
         { name: "Claude 浅棕", rgb: "#E8DCC8", type: "light" },
         { name: "Kami 纸白", rgb: "#f5f4ed", type: "light" },
         { name: "书页灰", rgb: "#DFDDD6", type: "light" },
-        { name: "淡珊瑚粉", rgb: "#F7E8E4", type: "light" },
+        { name: "蜜桃珊瑚", rgb: "#F9E5DB", type: "light" },
         { name: "草香", rgb: "#F5F8F3", type: "light" },
         { name: "系统默认", rgb: null, type: "dark" },
         { name: "暗夜黑", rgb: "#1a1a2e", type: "dark" },
