@@ -2,7 +2,7 @@
 <p align="center">
   <strong>Chrome Extension (Manifest V3) — injects wide-screen, theming, immersive reading, and auto-reader into weread.qq.com</strong>
   <br />
-  <em>Wide display · Custom themes · Auto-scroll · Douban search · Persistent config</em>
+  <em>Wide display · Custom themes · Auto-scroll · EPUB export · Douban search · Persistent config</em>
 </p>
 
 <p align="center">
@@ -30,6 +30,7 @@
 | **Immersive Reading** | Hides top bar / bottom bar / controls; reveals on hover; scrollbar hidden |
 | **Auto Reader** | Scrolls by step, auto-turns page at bottom; spacebar toggles start/pause; supports auto-stop timer |
 | **Douban Integration** | Press Enter in WeRead homepage search box to show Douban results in a side panel (background Service Worker proxies cross-origin requests) |
+| **EPUB Export** | Export the current book as EPUB (TOC + images): same-origin WeRead chapter API calls, throttled chapter-by-chapter fetching, per-image failures degrade to placeholders; epub-type books only |
 | **Persistent Config** | All settings saved via `chrome.storage.local`, restored automatically after SPA navigation |
 
 ## Quick Start
@@ -83,6 +84,10 @@ With "Auto Mode" turned off, the control panel reveals three sub-controls: scrol
 
 On the WeRead homepage (`weread.qq.com`), type a keyword in the search box and press Enter. A Douban search results panel slides out on the right; click an item to open the Douban page.
 
+### EPUB Export
+
+Click "Export Book" in the control panel to export the current book as an EPUB file (with TOC and images). Click again while exporting to cancel; large books take a few minutes (images are downloaded with throttling). Only epub-type books are supported; TXT-type web novels are explicitly rejected. The output is for personal backup only.
+
 ## Architecture
 
 ```mermaid
@@ -98,8 +103,11 @@ graph LR
     C --> I[Navigation<br/>SPA Nav]
     C --> J[Debug<br/>Page Diagnostics]
     D --> K[DoubanParser<br/>HTML Parser]
+    C --> M[EpubExport<br/>EPUB Export]
     K --> B
+    M --> B
     B -- cross-origin fetch --> L[(Douban Search)]
+    B -- image proxy --> N[(WeRead Image CDN)]
 
     classDef client fill:#3B82F6,stroke:#2563EB,color:#fff,stroke-width:2px
     classDef service fill:#10B981,stroke:#059669,color:#fff,stroke-width:2px
@@ -108,8 +116,8 @@ graph LR
 
     class A gateway
     class B,D,J client
-    class C,E,F,G,H,I,K service
-    class L data
+    class C,E,F,G,H,I,K,M service
+    class L,N data
 ```
 
 ## Configuration
@@ -134,7 +142,7 @@ weread-plus/
 │   ├── manifest.json              # MV3 config (matches, permissions, icons)
 │   ├── content.js                 # Reader page entry (thin entry, dynamic import)
 │   ├── douban.js                  # Homepage Douban integration entry
-│   ├── background.js              # Service Worker (proxies Douban cross-origin)
+│   ├── background.js              # Service Worker (proxies Douban/WeRead image cross-origin)
 │   ├── icons/                     # Extension icons (16/48/128)
 │   └── lib/
 │       ├── preferences.js         # Config state: storage + subscribe + preset cycling
@@ -143,14 +151,17 @@ weread-plus/
 │       ├── panel.js               # Control panel UI build + interaction
 │       ├── navigation.js          # SPA nav listener + dark/light switch + refresh flow
 │       ├── debug.js               # Page DOM diagnostics (window.__wrDiag)
-│       └── douban-parser.js       # Douban search HTML parser (pure logic)
+│       ├── douban-parser.js       # Douban search HTML parser (pure logic)
+│       └── epub-export.js          # EPUB export: protocol pure fns + packing + factory
 ├── tests/                         # Zero-dependency tests (node:test)
-│   ├── preferences.test.js        # Config state: 17 test cases
+│   ├── preferences.test.js        # Config state: 28 test cases
 │   ├── theming.test.js            # CSS generation: 7 test cases
-│   └── douban-parser.test.js      # Douban parser: 10 test cases
+│   ├── douban-parser.test.js      # Douban parser: 11 test cases
+│   └── epub-export.test.js        # Export pipeline: 32 test cases (golden vectors)
 ├── docs/                          # Project documentation
 │   └── agents/                    # Agent collaboration specs
-├── scratch/                       # Architecture refactor specs & issues
+├── .scratch/                      # Feature specs & issues
+├── .retro/                        # Session experience base (log/entries/INDEX)
 ├── package.json                   # Project config (type: module)
 └── CLAUDE.md                      # Claude Code collaboration notes
 ```

@@ -2,7 +2,7 @@
 <p align="center">
   <strong>Chrome 扩展（Manifest V3），为微信读书阅读器注入宽屏、主题、沉浸式阅读与自动阅读能力</strong>
   <br />
-  <em>宽屏显示 · 自定义背景色 · 自动阅读 · 豆瓣联动 · 配置持久化</em>
+  <em>宽屏显示 · 自定义背景色 · 自动阅读 · 电子书导出 · 豆瓣联动 · 配置持久化</em>
 </p>
 
 <p align="center">
@@ -30,6 +30,7 @@
 | **沉浸式阅读** | 隐藏顶栏/底栏/控制栏，鼠标悬停时显现，滚动条隐藏 |
 | **自动阅读** | 按步长自动滚动，到底自动翻页；空格键控制开始/暂停；支持自动停止计时器 |
 | **豆瓣联动** | 在微信读书首页搜索框回车，侧栏展示豆瓣搜索结果（背景 Service Worker 代理跨域请求） |
+| **导出本书** | 把当前书导出为 EPUB（含章节目录与插图）：同源调用微信读书章节接口，限速逐章抓取，单图失败自动降级占位；仅 epub 型书目 |
 | **配置持久化** | 通过 `chrome.storage.local` 保存所有设置，SPA 导航后自动恢复 |
 
 ## 快速开始
@@ -83,6 +84,10 @@ npm test
 
 在微信读书首页（`weread.qq.com`）的搜索框输入关键词并回车，右侧滑出豆瓣搜索结果面板，点击条目跳转豆瓣页面。
 
+### 导出本书
+
+在控制面板点击「导出本书」，把当前书导出为 EPUB 文件（含章节目录与插图）。导出中再次点击可取消；大型书籍约需数分钟（图片限速下载）。仅支持 epub 型书目，网文 TXT 型会明确提示。产物仅供个人备份。
+
 ## 架构
 
 ```mermaid
@@ -98,8 +103,11 @@ graph LR
     C --> I[Navigation<br/>SPA 导航]
     C --> J[Debug<br/>页面诊断]
     D --> K[DoubanParser<br/>HTML 解析]
+    C --> M[EpubExport<br/>EPUB 导出]
     K --> B
+    M --> B
     B -- 跨域 fetch --> L[(豆瓣搜索)]
+    B -- 图片代理 --> N[(微信读书图片 CDN)]
 
     classDef client fill:#3B82F6,stroke:#2563EB,color:#fff,stroke-width:2px
     classDef service fill:#10B981,stroke:#059669,color:#fff,stroke-width:2px
@@ -108,8 +116,8 @@ graph LR
 
     class A gateway
     class B,D,J client
-    class C,E,F,G,H,I,K service
-    class L data
+    class C,E,F,G,H,I,K,M service
+    class L,N data
 ```
 
 ## 配置项
@@ -134,7 +142,7 @@ weread-plus/
 │   ├── manifest.json              # MV3 配置（匹配规则、权限、图标）
 │   ├── content.js                 # 阅读器页面入口（薄入口，动态加载模块）
 │   ├── douban.js                  # 首页豆瓣联动入口
-│   ├── background.js              # Service Worker（代理豆瓣跨域请求）
+│   ├── background.js              # Service Worker（代理豆瓣/微信读书图片跨域请求）
 │   ├── icons/                     # 扩展图标（16/48/128）
 │   └── lib/
 │       ├── preferences.js         # 配置状态层：存储 + 订阅 + 预设循环
@@ -143,14 +151,17 @@ weread-plus/
 │       ├── panel.js               # 控制面板 UI 构建与交互
 │       ├── navigation.js          # SPA 导航监听 + 深浅色切换 + 刷新流
 │       ├── debug.js               # 页面 DOM 诊断工具（window.__wrDiag）
-│       └── douban-parser.js       # 豆瓣搜索结果 HTML 解析（纯逻辑）
+│       ├── douban-parser.js       # 豆瓣搜索结果 HTML 解析（纯逻辑）
+│       └── epub-export.js          # 电子书导出：协议纯函数 + EPUB 打包 + 装配工厂
 ├── tests/                         # 零依赖测试（node:test）
-│   ├── preferences.test.js        # 配置状态层 17 个用例
+│   ├── preferences.test.js        # 配置状态层 28 个用例
 │   ├── theming.test.js            # CSS 生成 7 个用例
-│   └── douban-parser.test.js      # 豆瓣解析 10 个用例
+│   ├── douban-parser.test.js      # 豆瓣解析 11 个用例
+│   └── epub-export.test.js        # 导出管线 32 个用例（含金标准向量）
 ├── docs/                          # 项目文档
 │   └── agents/                    # Agent 协作规范
-├── scratch/                       # 架构重构 spec 与 issues
+├── .scratch/                      # 功能 spec 与 issues
+├── .retro/                        # 会话经验库（log/entries/INDEX）
 ├── package.json                   # 项目配置（type: module）
 └── CLAUDE.md                      # Claude Code 协作说明
 ```
