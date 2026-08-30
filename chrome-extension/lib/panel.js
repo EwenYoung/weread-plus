@@ -1,7 +1,7 @@
 // 控制面板模块：构建 + 交互 + 刷新
 // 配置变化经 store 订阅自动刷新；开始/暂停直调 autoReader（spec D4）
 
-export function createPanel({ store, autoReader, doc, win, widths, bgColors, autoModes, isDoubleColumnMode, onModeChange }) {
+export function createPanel({ store, autoReader, ebookExport, doc, win, widths, bgColors, autoModes, isDoubleColumnMode, onModeChange }) {
     function buildControlPanel() {
         let old = doc.getElementById('wr-control-panel');
         if (old) old.remove();
@@ -171,6 +171,10 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
             rows.push({ label: '宽屏',  key: 'width',      val: widths[store.get('widthIdx')].title });
         }
         rows.push({ label: '主题颜色',  key: 'bg',         val: bgColors[store.get('bgIdx')].name, isBg: true });
+        // 导出按钮两种阅读模式都可用（API 路线不依赖页面渲染），双栏模式照常显示
+        if (ebookExport) {
+            rows.push({ label: '导出本书', key: 'wr-export', isExport: true });
+        }
         if (!isDoubleColumnMode()) {
             rows.push({ label: '自动模式',  key: 'autoMode',   val: autoModes[store.get('autoMode')] });
             rows.push({ label: '滚动步长',  key: 'scrollStep', val: store.get('scrollStep') + 'px', isSub: true });
@@ -187,6 +191,15 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
                     '<span class="wr-bg-name">' + r.val + '</span>' +
                     '<button data-key="bg_next" class="wr-btn-arrow">›</button>' +
                     '</span></div>';
+            }
+            if (r.isExport) {
+                const view = ebookExport.viewState();
+                const safeTitle = String(view.title).replace(/"/g, '&quot;');
+                return '<div class="wr-panel-row">' +
+                    '<span class="wr-label">' + r.label + '</span>' +
+                    '<button data-key="wr-export" id="wr-btn-export"' +
+                    (view.disabled ? ' disabled' : '') +
+                    ' title="' + safeTitle + '">' + view.label + '</button></div>';
             }
             let subClass = r.isSub ? ' wr-sub-row' : '';
             if (r.isSub) {
@@ -246,7 +259,13 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
         panel.querySelectorAll('button[data-key]').forEach(function(btn) {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                handlePanelClick(btn.getAttribute('data-key'));
+                let key = btn.getAttribute('data-key');
+                // 导出不走 store 状态协议，直调导出模块
+                if (key === 'wr-export') {
+                    if (ebookExport) ebookExport.toggle();
+                    return;
+                }
+                handlePanelClick(key);
             });
         });
 
@@ -335,6 +354,17 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
         }
     }
 
+    // 导出按钮状态由导出模块驱动（进度/取消/错误提示），只更新该按钮不重建面板
+    function refreshExportButton() {
+        if (!ebookExport) return;
+        let btn = doc.getElementById('wr-btn-export');
+        if (!btn) return;
+        let view = ebookExport.viewState();
+        btn.textContent = view.label;
+        btn.disabled = view.disabled;
+        btn.title = view.title;
+    }
+
     // 配置变化自动刷新显示（spec D4：panel 订阅 store）
     store.subscribe(function(key) {
         if (key === 'loaded') return;
@@ -346,5 +376,5 @@ export function createPanel({ store, autoReader, doc, win, widths, bgColors, aut
         }
     });
 
-    return { build: buildControlPanel, refresh: updatePanelDisplay };
+    return { build: buildControlPanel, refresh: updatePanelDisplay, refreshExport: refreshExportButton };
 }

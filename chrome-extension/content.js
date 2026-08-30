@@ -55,6 +55,24 @@
         remove: (key) => { chrome.storage.local.remove(key); }
     };
 
+    // 章节图片经 background 代理下载（跨域），二进制以 base64 往返
+    function base64ToBytes(b64) {
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    }
+
+    function fetchAssetViaBackground(url) {
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ type: 'FETCH_ASSET', url }, (resp) => {
+                if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+                if (!resp || !resp.ok) return reject(new Error((resp && resp.error) || '图片下载失败'));
+                resolve(base64ToBytes(resp.data));
+            });
+        });
+    }
+
     let store = null;
 
     function onStoreChange(key) {
@@ -88,6 +106,7 @@
     let autoReader = null;
     let panel = null;
     let navigation = null;
+    let ebookExport = null;
     // 注意：内容脚本中 import() 的相对路径以页面 URL 为基准，必须用扩展绝对路径
     Promise.all([
         import(chrome.runtime.getURL('lib/preferences.js')),
@@ -95,8 +114,9 @@
         import(chrome.runtime.getURL('lib/auto-reader.js')),
         import(chrome.runtime.getURL('lib/panel.js')),
         import(chrome.runtime.getURL('lib/navigation.js')),
-        import(chrome.runtime.getURL('lib/debug.js'))
-    ]).then(([pref, them, auto, pan, nav, dbg]) => {
+        import(chrome.runtime.getURL('lib/debug.js')),
+        import(chrome.runtime.getURL('lib/epub-export.js'))
+    ]).then(([pref, them, auto, pan, nav, dbg, epub]) => {
         store = pref.createStore({
             storage: chromeStorage,
             bgColors,
@@ -118,9 +138,16 @@
             isDoubleColumnMode,
             onToggle: () => panel.refresh()
         });
+        ebookExport = epub.createEbookExport({
+            doc: document,
+            win: window,
+            fetchAsset: fetchAssetViaBackground,
+            onStateChange: () => { if (panel) panel.refreshExport(); }
+        });
         panel = pan.createPanel({
             store,
             autoReader,
+            ebookExport,
             doc: document,
             win: window,
             widths,

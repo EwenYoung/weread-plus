@@ -1,5 +1,5 @@
 // 微信读书悦读助手 — Background Service Worker
-// 代理豆瓣搜索请求（Manifest V3 content script 无法跨域 fetch）
+// 代理跨域请求（Manifest V3 content script 无法跨域 fetch）：豆瓣搜索 + 微信读书图片资源
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'DOUBAN_SEARCH') {
@@ -7,6 +7,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .then(data => sendResponse({ ok: true, data }))
             .catch(err => sendResponse({ ok: false, error: err.message }));
         return true; // 异步响应
+    }
+    if (request.type === 'FETCH_ASSET') {
+        fetchAssetBase64(request.url)
+            .then(data => sendResponse({ ok: true, data }))
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true;
     }
 });
 
@@ -42,4 +48,20 @@ async function searchDouban(query) {
     } finally {
         clearTimeout(timer);
     }
+}
+
+// 章节图片：仅允许微信读书域（含子域），避免扩展被当作任意地址的代理。
+// sendMessage 走 JSON 序列化，二进制以 base64 往返
+async function fetchAssetBase64(url) {
+    if (!/^https:\/\/([a-z0-9-]+\.)*weread\.qq\.com\//.test(url)) {
+        throw new Error('仅支持 weread.qq.com 资源');
+    }
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('图片资源 HTTP ' + resp.status);
+    const bytes = new Uint8Array(await resp.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
 }
