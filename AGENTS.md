@@ -18,9 +18,15 @@
 
 ## 经验教训
 
-<!-- retro:escalated 完整版见 .retro/，满 8 条时降级最旧条目 -->
-- 滚动模式正文由 canvas 渲染且主题切换后不重绘、不响应 resize/display 切换；唯一可靠修法是像素自愈（theming.js healReaderCanvases）（2026-08-22，weread-canvas.md）
-- 基于微信读书类名的选择器会因改版静默失效：querySelectorAll 关键路径匹配为空必须打日志，"修好的 bug 复发"多半是这（2026-08-22，weread-canvas.md）
-- 本项目用户环境 matchMedia(prefers-color-scheme) change 不触发，系统主题检测以 body class 观察者为主信号（2026-08-22，weread-canvas.md）
-- 新增主题状态/模式必须过 canvas 自愈审计（applyBgColor/healReaderCanvases/clearPluginTextColors 三消费点都要有分支）；"不干预"式跳过自愈会复活残留 bug，passthrough 改用方向性亮度判断（2026-08-22，weread-canvas.md）
-- 主题索引必须按对象身份解析（bgColors.indexOf）：同名主题（"系统默认"双模式）下按名称 findIndex 恒命中首个；主题循环测试必须含环绕用例（2026-08-22，theme-system.md）
+<!-- retro-managed 区块由 retro 脚本维护，完整版见 .retro/，满 12 条时降级最旧条目 -->
+<!-- retro-managed-start -->
+- 滚动模式正文由 canvas 渲染且主题切换后不重绘，像素自愈 healReaderCanvases 是唯一可靠修法 [20260822-001]
+
+- 基于微信读书类名的选择器会因改版静默失效：querySelectorAll 关键路径匹配为空必须打日志 [20260822-002]
+
+- 本项目用户环境 matchMedia 深浅色 change 不触发，以 body class 观察者为主信号 [20260822-003]
+
+- 主题增改必须过 canvas 自愈审计，三消费点都要有分支 [20260822-004]
+
+- 主题索引按身份解析（bgColors.indexOf）：同名主题 findIndex 恒命中首个，测试必含环绕用例 [20260822-005]
+<!-- retro-managed-end -->
