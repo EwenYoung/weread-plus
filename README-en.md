@@ -2,7 +2,7 @@
 <p align="center">
   <strong>Chrome Extension (Manifest V3) — injects wide-screen, theming, immersive reading, and auto-reader into weread.qq.com</strong>
   <br />
-  <em>Wide display · Custom themes · Auto-scroll · EPUB export · Douban search · Persistent config</em>
+  <em>Wide display · Custom themes · Auto-scroll · EPUB export · Douban search · Z-Library search · Persistent config</em>
 </p>
 
 <p align="center">
@@ -30,6 +30,7 @@
 | **Immersive Reading** | Hides top bar / bottom bar / controls; reveals on hover; scrollbar hidden |
 | **Auto Reader** | Scrolls by step, auto-turns page at bottom; spacebar toggles start/pause; supports auto-stop timer |
 | **Douban Integration** | Press Enter in WeRead homepage search box to show Douban results in a side panel (background Service Worker proxies cross-origin requests) |
+| **Z-Library Integration** | Same search-box Enter triggers a left-side panel with Z-Library results: 5 mirrors are tried in order with the last-successful one reused; when blocked by bot verification, it degrades to opening the mirror's search page |
 | **EPUB Export** | Export the current book as EPUB (TOC + images): same-origin WeRead chapter API calls, throttled chapter-by-chapter fetching, per-image failures degrade to placeholders; epub-type books only |
 | **Persistent Config** | All settings saved via `chrome.storage.local`, restored automatically after SPA navigation |
 
@@ -84,6 +85,10 @@ With "Auto Mode" turned off, the control panel reveals three sub-controls: scrol
 
 On the WeRead homepage (`weread.qq.com`), type a keyword in the search box and press Enter. A Douban search results panel slides out on the right; click an item to open the Douban page.
 
+### Z-Library Search
+
+Same trigger as Douban: after pressing Enter in the homepage search box, a Z-Library results panel slides out on the left, showing title, authors, year, language, file format, and popularity. Click an item to open the book page. The background tries 5 mirrors in order (`zh.z-library.im` / `zh.libb.la` / `z-lib.sk` / `z-lib.fm` / `libb.la`) and reuses the last successful one; when a mirror is blocked by bot verification or a login wall, the panel offers an "Open Z-Library search page" button that jumps straight to the results page.
+
 ### EPUB Export
 
 Click "Export Book" in the control panel to export the current book as an EPUB file (with TOC and images). Click again while exporting to cancel; large books take a few minutes (images are downloaded with throttling). Only epub-type books are supported; TXT-type web novels are explicitly rejected. The output is for personal backup only.
@@ -96,6 +101,7 @@ graph LR
     A[Chrome Extension<br/>Manifest V3] --> B[Background<br/>Service Worker]
     A --> C[Content Script<br/>content.js]
     A --> D[Content Script<br/>douban.js]
+    A --> P[Content Script<br/>zlib.js]
     C --> E[PreferencesStore<br/>Config State]
     C --> F[Theming<br/>Wide + Theme]
     C --> G[AutoReader<br/>Auto Scroll]
@@ -103,10 +109,12 @@ graph LR
     C --> I[Navigation<br/>SPA Nav]
     C --> J[Debug<br/>Page Diagnostics]
     D --> K[DoubanParser<br/>HTML Parser]
+    P --> Z[ZLibParser<br/>HTML Parser]
     C --> M[EpubExport<br/>EPUB Export]
     K --> B
     M --> B
     B -- cross-origin fetch --> L[(Douban Search)]
+    B -- cross-origin fetch --> ZL[(Z-Library Mirrors)]
     B -- image proxy --> N[(WeRead Image CDN)]
 
     classDef client fill:#3B82F6,stroke:#2563EB,color:#fff,stroke-width:2px
@@ -115,9 +123,9 @@ graph LR
     classDef gateway fill:#F59E0B,stroke:#D97706,color:#fff,stroke-width:2px
 
     class A gateway
-    class B,D,J client
-    class C,E,F,G,H,I,K,M service
-    class L,N data
+    class B,D,J,P client
+    class C,E,F,G,H,I,K,M,Z service
+    class L,N,ZL data
 ```
 
 ## Configuration
@@ -142,7 +150,8 @@ weread-plus/
 │   ├── manifest.json              # MV3 config (matches, permissions, icons)
 │   ├── content.js                 # Reader page entry (thin entry, dynamic import)
 │   ├── douban.js                  # Homepage Douban integration entry
-│   ├── background.js              # Service Worker (proxies Douban/WeRead image cross-origin)
+│   ├── zlib.js                    # Homepage Z-Library integration entry (left-side panel)
+│   ├── background.js              # Service Worker (proxies Douban/Z-Library/WeRead image cross-origin)
 │   ├── icons/                     # Extension icons (16/48/128)
 │   └── lib/
 │       ├── preferences.js         # Config state: storage + subscribe + preset cycling
@@ -152,11 +161,13 @@ weread-plus/
 │       ├── navigation.js          # SPA nav listener + dark/light switch + refresh flow
 │       ├── debug.js               # Page DOM diagnostics (window.__wrDiag)
 │       ├── douban-parser.js       # Douban search HTML parser (pure logic)
+│       ├── zlib-parser.js         # Z-Library search HTML parser (pure logic)
 │       └── epub-export.js          # EPUB export: protocol pure fns + packing + factory
 ├── tests/                         # Zero-dependency tests (node:test)
 │   ├── preferences.test.js        # Config state: 28 test cases
 │   ├── theming.test.js            # CSS generation: 7 test cases
 │   ├── douban-parser.test.js      # Douban parser: 11 test cases
+│   ├── zlib-parser.test.js        # Z-Library parser: 18 test cases (legacy + web-component layouts)
 │   └── epub-export.test.js        # Export pipeline: 32 test cases (golden vectors)
 ├── docs/                          # Project documentation
 │   └── agents/                    # Agent collaboration specs

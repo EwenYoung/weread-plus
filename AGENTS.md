@@ -1,10 +1,10 @@
 # 悦读助手（weread-plus）
 
-微信读书（weread.qq.com）增强 Chrome MV3 扩展：宽屏、主题颜色、沉浸式阅读、自动阅读、豆瓣搜索联动、电子书导出。提交、注释、文档全中文；提交信息用 `type: 描述`（feat/fix/chore/docs）。
+微信读书（weread.qq.com）增强 Chrome MV3 扩展：宽屏、主题颜色、沉浸式阅读、自动阅读、豆瓣与 Z-Library 搜索联动、电子书导出。提交、注释、文档全中文；提交信息用 `type: 描述`（feat/fix/chore/docs）。
 
 ## 架构约定
 
-- 三个入口：`chrome-extension/content.js`（阅读器页薄入口，定义主题/宽度清单并装配 lib 模块）、`douban.js`（首页豆瓣搜索联动）、`background.js`（service worker，代发跨域请求：豆瓣搜索与微信读书图片资源——MV3 content script 不能跨域 fetch）。
+- 四个入口：`chrome-extension/content.js`（阅读器页薄入口，定义主题/宽度清单并装配 lib 模块）、`douban.js`（首页豆瓣搜索联动）、`zlib.js`（首页 Z-Library 搜索联动，面板在左侧）、`background.js`（service worker，代发跨域请求：豆瓣搜索、Z-Library 镜像轮询与微信读书图片资源——MV3 content script 不能跨域 fetch）。
 - 模块在 `chrome-extension/lib/`，ES module 工厂 + 依赖注入：store/doc/win/配置清单由入口传入，模块顶层不触碰 chrome API 与 DOM，纯函数层（CSS 生成、解析、状态逻辑）才能被 `npm test`（node:test，零依赖零构建）直接测试。新代码保持这条分层。
 - content script 动态加载模块必须 `import(chrome.runtime.getURL('lib/x.js'))`：相对路径以页面 URL 为基准，会解析到 weread 域下 404。
 - 编码规范见根目录 `CLEAN-CODE.md`（Clean Code 规则集）：写代码、测试、重构、评审前先读，与本文件冲突时以本文件为准。

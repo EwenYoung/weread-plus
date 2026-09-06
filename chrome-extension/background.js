@@ -1,5 +1,5 @@
 // 微信读书悦读助手 — Background Service Worker
-// 代理跨域请求（Manifest V3 content script 无法跨域 fetch）：豆瓣搜索 + 微信读书图片资源
+// 代理跨域请求（Manifest V3 content script 无法跨域 fetch）：豆瓣搜索 + Z-Library 搜索 + 微信读书图片资源
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'DOUBAN_SEARCH') {
@@ -7,6 +7,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .then(data => sendResponse({ ok: true, data }))
             .catch(err => sendResponse({ ok: false, error: err.message }));
         return true; // 异步响应
+    }
+    if (request.type === 'ZLIB_SEARCH') {
+        searchZlib(request.query)
+            .then(({ html, mirror }) => sendResponse({ ok: true, html, mirror }))
+            .catch(err => sendResponse({ ok: false, error: err.message, mirror: zlibLastGood || ZLIB_MIRRORS[0] }));
+        return true;
     }
     if (request.type === 'FETCH_ASSET') {
         fetchAssetBase64(request.url)
@@ -39,6 +45,75 @@ async function searchDouban(query) {
 
         if (html.includes('检测到有异常请求') || html.includes('需要验证')) {
             throw new Error('DOUBAN_BLOCKED');
+        }
+
+        return html;
+    } catch (err) {
+        if (err.name === 'AbortError') throw new Error('TIMEOUT');
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// Z-Library 镜像按序尝试，service worker 存活期内复用最近成功者。
+// 请求带 credentials 让浏览器附上登录与人机验证通过的 cookie；
+// 命中验证页/登录墙（响应里没有结果结构）视为该镜像不可用，换下一个。
+const ZLIB_MIRRORS = [
+    'https://zh.z-library.im',
+    'https://zh.libb.la',
+    'https://z-lib.sk',
+    'https://z-lib.fm',
+    'https://libb.la'
+];
+let zlibLastGood = '';
+
+async function searchZlib(query) {
+    const mirrors = zlibLastGood
+        ? [zlibLastGood, ...ZLIB_MIRRORS.filter(m => m !== zlibLastGood)]
+        : ZLIB_MIRRORS;
+
+    let lastErr = new Error('ZLIB_BLOCKED');
+    for (const mirror of mirrors) {
+        try {
+            const html = await fetchZlibSearch(mirror, query);
+            zlibLastGood = mirror;
+            return { html, mirror };
+        } catch (err) {
+            lastErr = err;
+        }
+    }
+    throw lastErr;
+}
+
+async function fetchZlibSearch(mirror, query) {
+    const url = mirror + '/s/' + encodeURIComponent(query) + '/';
+
+    // 每镜像 8 秒超时，防止坏镜像拖死整轮轮询
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    try {
+        const resp = await fetch(url, {
+            headers: {
+                'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'zh-CN,zh;q=0.9'
+            },
+            credentials: 'include',
+            signal: controller.signal
+        });
+
+        // 人机验证墙常以 403/513 返回，归为拦截类，换镜像行为与用户提示才准确
+        if (resp.status === 403 || resp.status === 513) throw new Error('ZLIB_BLOCKED');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+        const html = await resp.text();
+
+        if (/DiamWall|Verifying your browser|cf-challenge|Just a moment/i.test(html)) {
+            throw new Error('ZLIB_BLOCKED');
+        }
+        if (!/resItemBox|searchResultBox|z-bookcard|book-item/.test(html)) {
+            throw new Error('ZLIB_BLOCKED');
         }
 
         return html;

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "微信读书 · 悦读助手",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "宽屏显示｜自定义背景色｜沉浸式阅读｜自动阅读｜配置持久化",
   "icons": {
     "16": "icons/icon16.png",
@@ -21,6 +21,11 @@
       "matches": ["https://weread.qq.com/"],
       "js": ["douban.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://weread.qq.com/"],
+      "js": ["zlib.js"],
+      "run_at": "document_idle"
     }
   ],
   "permissions": ["storage"],
@@ -29,7 +34,12 @@
     "https://res.weread.qq.com/*",
     "https://*.weread.qq.com/*",
     "https://*.tencent-cloud.com/*",
-    "https://*.myqcloud.com/*"
+    "https://*.myqcloud.com/*",
+    "https://z-lib.sk/*",
+    "https://zh.z-library.im/*",
+    "https://z-lib.fm/*",
+    "https://libb.la/*",
+    "https://zh.libb.la/*"
   ],
   "web_accessible_resources": [
     {
